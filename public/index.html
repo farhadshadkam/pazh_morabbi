@@ -29,7 +29,7 @@
         <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-blue-900 p-4">
             <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
                 <div class="text-center mb-8">
-                    <img src="/logo.jpg" onerror="this.style.display='none'" alt="TVTO Logo" class="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-1 border">
+                    <img src="/logo.jpg" onerror="this.style.display='none'" alt="TVTO Logo" class="h-24 w-auto mx-auto mb-4 rounded-md object-contain bg-white p-1 border">
                     <h1 class="text-2xl font-bold text-slate-800">سامانه رصد فعالیت‌ها</h1>
                     <p class="text-sm text-gray-500 mt-2">سازمان آموزش فنی و حرفه‌ای کشور</p>
                 </div>
@@ -60,7 +60,7 @@
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center justify-between h-16">
                         <div class="flex items-center gap-3">
-                            <img src="/logo.jpg" onerror="this.style.display='none'" alt="Logo" class="w-10 h-10 rounded-full object-contain bg-white p-1">
+                            <img src="/logo.jpg" onerror="this.style.display='none'" alt="Logo" class="h-10 w-auto rounded-md object-contain bg-white p-1">
                             <div>
                                 <h1 class="text-base font-bold">سامانه رصد فعالیت‌ها</h1>
                                 <p class="text-xs text-slate-400">سازمان آموزش فنی و حرفه ای</p>
@@ -141,7 +141,7 @@
                     </div>
 
                     <div x-show="currentRole === 'admin'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                        <h3 class="font-bold mb-4">وضعیت استان‌ها در ماه: <span x-text="dashboardMonth"></span></h3>
+                        <h3 class="font-bold mb-4">وضعیت استان‌ها در سال: <span x-text="dashboardYear"></span> / ماه: <span x-text="dashboardMonth"></span></h3>
                         <table class="w-full text-sm whitespace-nowrap">
                             <thead class="bg-slate-50 text-slate-600"><tr class="border-b">
                                 <th class="p-3 text-right">استان</th><th class="p-3 text-center">تعداد مراکز</th><th class="p-3 text-center">گزارش‌های تایید شده</th><th class="p-3 text-center">عملیات</th>
@@ -160,7 +160,7 @@
                     </div>
 
                     <div x-show="currentRole === 'head'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                        <h3 class="font-bold mb-4">وضعیت مربیان مرکز در ماه: <span x-text="dashboardMonth"></span></h3>
+                        <h3 class="font-bold mb-4">وضعیت مربیان مرکز در سال: <span x-text="dashboardYear"></span> / ماه: <span x-text="dashboardMonth"></span></h3>
                         <table class="w-full text-sm whitespace-nowrap">
                             <thead class="bg-slate-50 text-slate-600"><tr class="border-b">
                                 <th class="p-3 text-right">نام مربی</th><th class="p-3 text-right">نوع استخدام</th><th class="p-3 text-center">وضعیت گزارش</th><th class="p-3 text-center">جمع ساعت</th>
@@ -184,7 +184,7 @@
                     </div>
 
                     <div x-show="currentRole === 'expert'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                        <h3 class="font-bold mb-4">وضعیت مراکز در ماه: <span x-text="dashboardMonth"></span></h3>
+                        <h3 class="font-bold mb-4">وضعیت مراکز در سال: <span x-text="dashboardYear"></span> / ماه: <span x-text="dashboardMonth"></span></h3>
                         <table class="w-full text-sm whitespace-nowrap">
                             <thead class="bg-slate-50 text-slate-600"><tr class="border-b">
                                 <th class="p-3 text-right">مرکز</th><th class="p-3 text-center">مربیان</th><th class="p-3 text-center">تایید شده</th><th class="p-3 text-center">عملیات</th>
@@ -205,7 +205,7 @@
 
                 <!-- Chart Page -->
                 <div x-show="currentPage === 'charts'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 class="font-bold mb-4">نمودار درصد تکمیل <span x-text="currentRole === 'admin' ? 'استان‌ها' : 'مراکز'"></span> (سال <span x-text="dashboardYear"></span> - ماه <span x-text="dashboardMonth"></span>)</h3>
+                    <h3 class="font-bold mb-4">نمودار درصد تکمیل <span x-text="currentRole === 'admin' ? 'استان‌ها' : 'مراکز'"></span> (سال: <span x-text="dashboardYear"></span> / ماه: <span x-text="dashboardMonth"></span>)</h3>
                     <div class="flex gap-4 items-end mb-6 flex-wrap">
                         <div class="w-40">
                             <label class="block text-xs mb-1 text-gray-500">سال:</label>
@@ -551,6 +551,12 @@
                 { title: 'ممیزی پروژه عملی', rule: 'هر پروژه: ۵ ساعت', multiplier: 5 }
             ],
 
+            // Convert English digits to Persian
+            toFaDigits(str) {
+                if (!str) return '';
+                return str.toString().replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+            },
+
             init() {
                 // 1. Calculate Today's Date
                 const today = new Date();
@@ -568,8 +574,10 @@
                 const jm = (days < 186) ? 1 + parseInt(days / 31) : 7 + parseInt((days - 186) / 30);
                 const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
                 
-                this.todayJalali = `${jy}/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}`;
-                this.dashboardYear = jy.toString();
+                this.todayJalali = this.toFaDigits(`${jy}/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}`);
+                
+                // Set dashboard defaults dynamically in Persian digits
+                this.dashboardYear = this.toFaDigits(jy.toString());
                 const prevMonth = jm === 1 ? 12 : jm - 1;
                 const monthsMap = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
                 this.dashboardMonth = monthsMap[prevMonth - 1];
@@ -695,7 +703,7 @@
             },
             deleteInstructor(index) { if (confirm('حذف مربی؟')) { let iId = this.instructors[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== iId); this.instructors.splice(index, 1); this.saveState(); } },
 
-            // Date normalization (Convert Persian digits to English)
+            // Date normalization (Convert Persian digits to English for validation)
             toEnDigits(str) {
                 if (!str) return '';
                 return str.toString().replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
