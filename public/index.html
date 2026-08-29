@@ -8,6 +8,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jalaali-js/dist/jalaali.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
@@ -29,9 +30,9 @@
         <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-blue-900 p-4">
             <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
                 <div class="text-center mb-8">
-                    <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-3xl">📊</div>
+                    <img src="https://z-cdn-media.chatglm.cn/files/4712c193-f4ee-4cc2-a0d0-3ca03f3ba2c8.jpg" alt="TVTO Logo" class="w-20 h-20 mx-auto mb-4 rounded-full object-contain bg-white p-1 border">
                     <h1 class="text-2xl font-bold text-slate-800">سامانه رصد فعالیت‌ها</h1>
-                    <p class="text-sm text-gray-500 mt-2">مراکز آموزش فنی و حرفه‌ای غیردولتی</p>
+                    <p class="text-sm text-gray-500 mt-2">سازمان آموزش فنی و حرفه‌ای کشور</p>
                 </div>
                 <div x-show="loginError" x-transition class="bg-red-50 border-r-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 text-sm">
                     <p x-text="loginError"></p>
@@ -47,9 +48,6 @@
                     </div>
                     <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition">ورود به سامانه</button>
                 </form>
-                <div class="mt-6 text-xs text-gray-400 bg-slate-50 p-3 rounded">
-                    <p>برای تست: فقط با ادمین <code>admin</code> (رمز: 123) وارد شوید و کاربران دیگر را بسازید.</p>
-                </div>
             </div>
         </div>
     </template>
@@ -58,9 +56,10 @@
     <template x-if="loggedIn">
         <div class="min-h-screen flex">
             <aside class="w-64 bg-slate-800 text-white flex flex-col fixed h-full">
-                <div class="p-4 text-center border-b border-slate-700">
+                <div class="p-4 text-center border-b border-slate-700 flex flex-col items-center">
+                    <img src="https://z-cdn-media.chatglm.cn/files/4712c193-f4ee-4cc2-a0d0-3ca03f3ba2c8.jpg" alt="Logo" class="w-16 h-16 mb-2 rounded-full object-contain bg-white p-1">
                     <h1 class="text-lg font-bold">پنل کاربری</h1>
-                    <p class="text-xs text-blue-400 mt-1 font-bold" x-text="roles.find(r => r.id === currentRole).name"></p>
+                    <p class="text-xs text-blue-400 mt-1 font-bold">سازمان آموزش فنی و حرفه ای</p>
                 </div>
                 <nav class="flex-1 p-3 space-y-2 overflow-y-auto">
                     <button @click="currentPage = 'dashboard'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'dashboard', 'hover:bg-slate-700': currentPage !== 'dashboard'}"><span>🏠</span> <span>داشبورد</span></button>
@@ -107,7 +106,7 @@
                         </p>
                     </div>
                     <div class="text-sm bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-medium">
-                        امروز سیستم: <span x-text="systemDate.year + '/' + systemDate.month + '/' + systemDate.day"></span>
+                        امروز سیستم: <span x-text="todayJalali"></span>
                     </div>
                 </header>
 
@@ -355,7 +354,9 @@
                         <div class="mb-10">
                             <h3 class="bg-slate-200 px-4 py-2 font-bold mb-3 rounded-t-lg">بخش ب: عملکرد فعالیت‌ها</h3>
                             <table class="w-full text-sm border border-collapse">
-                                <thead class="bg-slate-100"><tr><th class="border p-2">ردیف</th><th class="border p-2">عنوان فعالیت و مرجع محاسبه</th><th class="border p-2 w-32">ساعت</th><th class="border p-2">توضیحات</th></tr></thead>
+                                <thead class="bg-slate-100"><tr>
+                                    <th class="border p-2">ردیف</th><th class="border p-2">عنوان فعالیت و مرجع محاسبه</th><th class="border p-2 w-32">حجم فعالیت</th><th class="border p-2 w-32">ساعت محاسبه شده</th><th class="border p-2">توضیحات</th>
+                                </tr></thead>
                                 <tbody>
                                     <template x-for="(a, i) in currentReport.partB" :key="i">
                                         <tr>
@@ -364,12 +365,13 @@
                                                 <span class="font-medium" x-text="a.title"></span>
                                                 <span class="activity-rule" x-text="a.rule"></span>
                                             </td>
-                                            <td class="border p-1"><input type="number" x-model="a.hours" :disabled="isFormReadOnly" class="border-none p-0 text-center"></td>
+                                            <td class="border p-1"><input type="number" x-model="a.qty" :disabled="isFormReadOnly" class="border-none p-0 text-center" placeholder="مثلاً ۳"></td>
+                                            <td class="border p-2 text-center font-bold bg-slate-50" x-text="(parseFloat(a.qty) || 0) * a.multiplier"></td>
                                             <td class="border p-1"><input type="text" x-model="a.desc" :disabled="isFormReadOnly" class="border-none p-0"></td>
                                         </tr>
                                     </template>
                                 </tbody>
-                                <tfoot><tr class="bg-slate-100 font-bold"><td class="border p-2 text-left" colspan="2">جمع کل ساعت فعالیت‌ها:</td><td class="border p-2 text-center" x-text="totalHours()"></td><td class="border p-2"></td></tr></tfoot>
+                                <tfoot><tr class="bg-slate-100 font-bold"><td class="border p-2 text-left" colspan="3">جمع کل ساعت فعالیت‌ها:</td><td class="border p-2 text-center" x-text="totalHours()"></td><td class="border p-2"></td></tr></tfoot>
                             </table>
                         </div>
 
@@ -408,7 +410,7 @@
         </div>
     </template>
 
-    <!-- Modals -->
+    <!-- Modals (Expert, Center, Instructor, Drilldowns) -->
     <div x-show="showExpertModal" x-transition class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50" style="display: none;">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
             <h3 class="text-xl font-bold mb-4" x-text="expertForm.id !== null ? 'ویرایش کارشناس' : 'افزودن کارشناس'"></h3>
@@ -416,10 +418,7 @@
                 <div><label class="block text-sm mb-1">استان</label><select x-model="expertForm.province"><option value="">انتخاب...</option><template x-for="(p, i) in provinces" :key="i"><option :value="p.name" x-text="p.name"></option></template></select></div>
                 <div><label class="block text-sm mb-1">نام و نام خانوادگی</label><input type="text" x-model="expertForm.name"></div>
                 <div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="expertForm.phone"></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm mb-1">نام کاربری</label><input type="text" x-model="expertForm.username"></div>
-                    <div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="expertForm.password"></div>
-                </div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm mb-1">نام کاربری</label><input type="text" x-model="expertForm.username"></div><div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="expertForm.password"></div></div>
             </div>
             <div class="flex justify-end gap-3 mt-6"><button @click="showExpertModal = false" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button><button @click="saveExpert()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">ذخیره</button></div>
         </div>
@@ -435,10 +434,7 @@
                 </div>
                 <div><label class="block text-sm mb-1">نام مرکز</label><input type="text" x-model="centerForm.centerName"></div>
                 <div><label class="block text-sm mb-1">نام رئیس مرکز</label><input type="text" x-model="centerForm.headName"></div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="centerForm.headPhone"></div>
-                    <div><label class="block text-sm mb-1">نام کاربری رئیس مرکز</label><input type="text" x-model="centerForm.headUsername"></div>
-                </div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="centerForm.headPhone"></div><div><label class="block text-sm mb-1">نام کاربری رئیس مرکز</label><input type="text" x-model="centerForm.headUsername"></div></div>
                 <div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="centerForm.headPassword"></div>
             </div>
             <div class="flex justify-end gap-3 mt-6"><button @click="showCenterModal = false" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button><button @click="saveCenter()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">ذخیره</button></div>
@@ -449,18 +445,9 @@
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
             <h3 class="text-xl font-bold mb-4" x-text="instructorForm.id !== null ? 'ویرایش مربی' : 'افزودن مربی'"></h3>
             <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm mb-1">نام</label><input type="text" x-model="instructorForm.firstName"></div>
-                    <div><label class="block text-sm mb-1">نام خانوادگی</label><input type="text" x-model="instructorForm.lastName"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm mb-1">کد ملی</label><input type="text" x-model="instructorForm.nationalId"></div>
-                    <div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="instructorForm.phone"></div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm mb-1">نوع استخدام</label><select x-model="instructorForm.empType"><option value="رسمی">رسمی</option><option value="پیمانی">پیمانی</option></select></div>
-                    <div><label class="block text-sm mb-1">نام کاربری</label><input type="text" x-model="instructorForm.username"></div>
-                </div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm mb-1">نام</label><input type="text" x-model="instructorForm.firstName"></div><div><label class="block text-sm mb-1">نام خانوادگی</label><input type="text" x-model="instructorForm.lastName"></div></div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm mb-1">کد ملی</label><input type="text" x-model="instructorForm.nationalId"></div><div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="instructorForm.phone"></div></div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm mb-1">نوع استخدام</label><select x-model="instructorForm.empType"><option value="رسمی">رسمی</option><option value="پیمانی">پیمانی</option></select></div><div><label class="block text-sm mb-1">نام کاربری</label><input type="text" x-model="instructorForm.username"></div></div>
                 <div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="instructorForm.password"></div>
             </div>
             <div class="flex justify-end gap-3 mt-6"><button @click="showInstructorModal = false" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button><button @click="saveInstructor()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">ذخیره</button></div>
@@ -475,12 +462,7 @@
                 <thead class="bg-slate-50"><tr><th class="p-3 text-right">مرکز</th><th class="p-3 text-center">تعداد مربیان</th><th class="p-3 text-center">گزارش‌های تایید شده</th><th class="p-3 text-center">عملیات</th></tr></thead>
                 <tbody>
                     <template x-for="(c, i) in centers.filter(c => c.province === drillDownProvince)" :key="i">
-                        <tr class="border-b">
-                            <td class="p-3" x-text="c.centerName"></td>
-                            <td class="p-3 text-center" x-text="instructors.filter(ins => ins.centerId === c.id).length"></td>
-                            <td class="p-3 text-center text-green-600 font-bold" x-text="getCenterStats(c.id).approved"></td>
-                            <td class="p-3 text-center"><button @click="openDrillDown(c.id)" class="text-blue-600 hover:underline">جزئیات مربیان</button></td>
-                        </tr>
+                        <tr class="border-b"><td class="p-3" x-text="c.centerName"></td><td class="p-3 text-center" x-text="instructors.filter(ins => ins.centerId === c.id).length"></td><td class="p-3 text-center text-green-600 font-bold" x-text="getCenterStats(c.id).approved"></td><td class="p-3 text-center"><button @click="openDrillDown(c.id)" class="text-blue-600 hover:underline">جزئیات مربیان</button></td></tr>
                     </template>
                 </tbody>
             </table>
@@ -495,15 +477,7 @@
                 <thead class="bg-slate-50"><tr><th class="p-3 text-right">مربی</th><th class="p-3 text-center">وضعیت در ماه جاری</th><th class="p-3 text-center">ساعت</th></tr></thead>
                 <tbody>
                     <template x-for="(ins, i) in instructors.filter(inst => inst.centerId === drillDownCenterId)" :key="i">
-                        <tr class="border-b">
-                            <td class="p-3" x-text="ins.firstName + ' ' + ins.lastName"></td>
-                            <td class="p-3 text-center">
-                                <span x-show="getInstructorStatus(ins.id) === 'not_submitted'" class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs">تکمیل نشده</span>
-                                <span x-show="getInstructorStatus(ins.id) === 'approved'" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">تایید شده</span>
-                                <span x-show="getInstructorStatus(ins.id) === 'pending'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs">در انتظار</span>
-                            </td>
-                            <td class="p-3 text-center" x-text="getInstructorTotalHours(ins.id)"></td>
-                        </tr>
+                        <tr class="border-b"><td class="p-3" x-text="ins.firstName + ' ' + ins.lastName"></td><td class="p-3 text-center"><span x-show="getInstructorStatus(ins.id) === 'not_submitted'" class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs">تکمیل نشده</span><span x-show="getInstructorStatus(ins.id) === 'approved'" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">تایید شده</span><span x-show="getInstructorStatus(ins.id) === 'pending'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs">در انتظار</span></td><td class="p-3 text-center" x-text="getInstructorTotalHours(ins.id)"></td></tr>
                     </template>
                 </tbody>
             </table>
@@ -520,9 +494,9 @@
             currentUserInfo: { fullName: '', centerName: '-', provinceName: '-' },
             roles: [{id:'admin',name:'ادمین'},{id:'expert',name:'کارشناس'},{id:'head',name:'رئیس مرکز'},{id:'instructor',name:'مربی'}],
             
-            systemDate: { year: 1405, month: 6, day: 31 },
-            previousMonth: { year: 1405, month: 5 },
-
+            // Dynamic System Date using Jalaali JS
+            todayJalali: '',
+            
             registeredUsers: [{ username: 'admin', password: '123', role: 'admin', id: 'u1' }],
             provinces: [{ name: 'تهران', cities: ['تهران', 'ری'] }],
             experts: [], centers: [], instructors: [], reports: [], currentReport: null,
@@ -531,19 +505,32 @@
             newProvince: '', newCity: '', selectedProvinceForCity: '', isFormReadOnly: false,
             
             defaultActivities: [
-                { title: 'بازرسی از آموزشگاههای فنی و حرفه ای آزاد', rule: 'هر بازدید استاندارد: ۲ ساعت' },
-                { title: 'همکاری در اجرای کلان پروژه های سازمان', rule: 'بر اساس ساعت واقعی حضور تایید شده' },
-                { title: 'طراحی پروژه مسابقات ملی مهارت سطح کشوری', rule: 'هر پروژه: حداکثر ۴۰ ساعت' },
-                { title: 'طراحی پروژه مساباقات ملی مهارت سطح استانی', rule: 'هر پروژه: حداکثر ۳۰ ساعت' },
-                { title: 'آموزش به رقابت کنندگان مسابقات ملی مهارت سطح کشوری', rule: 'ساعت واقعی آموزش (حداکثر ۱۰ ساعت در روز)' },
-                { title: 'بازنگری استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۲۰ ساعت' },
-                { title: 'تدوین استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۴۰ ساعت' },
-                { title: 'اجرای آزمون عملی', rule: 'هر آزمون: ۱ ساعت' },
-                { title: 'طراحی سؤال', rule: 'هر سؤال: ۱ ساعت' },
-                { title: 'ممیزی سؤال', rule: 'هر سؤال: ۰.۵ ساعت' },
-                { title: 'طراحی پروژه عملی', rule: 'هر پروژه: ۱۰ ساعت' },
-                { title: 'ممیزی پروژه عملی', rule: 'هر پروژه: ۵ ساعت' }
+                { title: 'بازرسی از آموزشگاههای فنی و حرفه ای آزاد', rule: 'هر بازدید استاندارد: ۲ ساعت', unit: 'بازدید', multiplier: 2 },
+                { title: 'همکاری در اجرای کلان پروژه های سازمان', rule: 'بر اساس ساعت واقعی حضور تایید شده', unit: 'ساعت', multiplier: 1 },
+                { title: 'طراحی پروژه مسابقات ملی مهارت سطح کشوری', rule: 'هر پروژه: حداکثر ۴۰ ساعت', unit: 'پروژه', multiplier: 40 },
+                { title: 'طراحی پروژه مساباقات ملی مهارت سطح استانی', rule: 'هر پروژه: حداکثر ۳۰ ساعت', unit: 'پروژه', multiplier: 30 },
+                { title: 'آموزش به رقابت کنندگان مسابقات ملی مهارت سطح کشوری', rule: 'ساعت واقعی آموزش (حداکثر ۱۰ ساعت در روز)', unit: 'ساعت', multiplier: 1 },
+                { title: 'بازنگری استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۲۰ ساعت', unit: 'استاندارد', multiplier: 20 },
+                { title: 'تدوین استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۴۰ ساعت', unit: 'استاندارد', multiplier: 40 },
+                { title: 'اجرای آزمون عملی', rule: 'هر آزمون: ۱ ساعت', unit: 'آزمون', multiplier: 1 },
+                { title: 'طراحی سؤال', rule: 'هر سؤال: ۱ ساعت', unit: 'سؤال', multiplier: 1 },
+                { title: 'ممیزی سؤال', rule: 'هر سؤال: ۰.۵ ساعت', unit: 'سؤال', multiplier: 0.5 },
+                { title: 'طراحی پروژه عملی', rule: 'هر پروژه: ۱۰ ساعت', unit: 'پروژه', multiplier: 10 },
+                { title: 'ممیزی پروژه عملی', rule: 'هر پروژه: ۵ ساعت', unit: 'پروژه', multiplier: 5 }
             ],
+
+            init() {
+                // Calculate today's Jalali date on load
+                const today = new Date();
+                const j = jalaali.toJalaali(today);
+                this.todayJalali = `${j.jy}/${j.jm.toString().padStart(2, '0')}/${j.jd.toString().padStart(2, '0')}`;
+                
+                // Set dashboard defaults to current year and previous month dynamically
+                this.dashboardYear = j.jy.toString();
+                const prevMonth = j.jm === 1 ? 12 : j.jm - 1;
+                const monthsMap = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+                this.dashboardMonth = monthsMap[prevMonth - 1];
+            },
 
             login() {
                 let user = this.registeredUsers.find(u => u.username === this.username && u.password === this.password);
@@ -606,25 +593,36 @@
             },
             deleteInstructor(index) { if (confirm('حذف مربی؟')) { let iId = this.instructors[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== iId); this.instructors.splice(index, 1); } },
 
-            validateJalaliDate(dateStr) { return /^14\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/.test(dateStr); },
-            getInstructorFormButtonText() { let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == '۱۴۰۵' && r.month == 'مرداد'); if (existing) { return existing.status === 'approved' ? 'مشاهده گزارش مرداد (تایید شده)' : 'ویرایش گزارش مرداد'; } return 'تکمیل فرم ماهانه مرداد'; },
+            // Precise Date Validation Logic
+            validateJalaliDate(dateStr) { return /^1[4-9]\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/.test(dateStr); },
+            getInstructorFormButtonText() { let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == this.dashboardYear && r.month == this.dashboardMonth); if (existing) { return existing.status === 'approved' ? 'مشاهده گزارش '+ this.dashboardMonth +' (تایید شده)' : 'ویرایش گزارش ' + this.dashboardMonth; } return 'تکمیل فرم ماهانه ' + this.dashboardMonth; },
             openNewForm() {
                 let inst = this.instructors.find(i => i.id === this.currentUserId);
                 let center = this.centers.find(c => c.id === inst.centerId);
-                let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == '۱۴۰۵' && r.month == 'مرداد');
+                let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == this.dashboardYear && r.month == this.dashboardMonth);
                 if (existing) { this.viewReport(this.reports.indexOf(existing)); } 
                 else {
-                    this.currentReport = { id: 'r'+Date.now(), instructorId: this.currentUserId, centerId: inst.centerId, instructorName: inst.firstName+' '+inst.lastName, centerName: center.centerName, province: center.province, city: center.city, employmentType: inst.empType, year: '۱۴۰۵', month: 'مرداد', status: 'pending', partA: [], partB: this.defaultActivities.map(t => ({title: t.title, rule: t.rule, hours: '', desc: ''})), instructorNotes: '', headNotes: '', visibleToInstructor: false, visibleToExpert: false };
+                    this.currentReport = { id: 'r'+Date.now(), instructorId: this.currentUserId, centerId: inst.centerId, instructorName: inst.firstName+' '+inst.lastName, centerName: center.centerName, province: center.province, city: center.city, employmentType: inst.empType, year: this.dashboardYear, month: this.dashboardMonth, status: 'pending', partA: [], partB: this.defaultActivities.map(t => ({title: t.title, rule: t.rule, multiplier: t.multiplier, qty: '', desc: ''})), instructorNotes: '', headNotes: '', visibleToInstructor: false, visibleToExpert: false };
                     this.isFormReadOnly = false;
                     this.currentPage = 'form';
                 }
             },
             addCourse() { this.currentReport.partA.push({ title: '', hours: '', start: '', end: '', days: '' }); },
             saveReport() {
+                const monthsMap = {'فروردین':'01','اردیبهشت':'02','خرداد':'03','تیر':'04','مرداد':'05','شهریور':'06','مهر':'07','آبان':'08','آذر':'09','دی':'10','بهمن':'11','اسفند':'12'};
+                const daysInMonth = {'01':'31','02':'31','03':'31','04':'31','05':'31','06':'31','07':'30','08':'30','09':'30','10':'30','11':'30','12':'29'};
+                
+                let year = this.currentReport.year;
+                let mNum = monthsMap[this.currentReport.month];
+                let lastDay = daysInMonth[mNum];
+                
+                let mStart = `${year}/${mNum}/01`;
+                let mEnd = `${year}/${mNum}/${lastDay}`;
+
                 for(let c of this.currentReport.partA) {
-                    if(!this.validateJalaliDate(c.start) || !this.validateJalaliDate(c.end)) { alert("فرمت تاریخ شمسی اشتباه است. مثال صحیح: 1405/05/01"); return; }
+                    if(!this.validateJalaliDate(c.start) || !this.validateJalaliDate(c.end)) { alert("فرمت تاریخ شمسی اشتباه است. حتما با صفرهای پیشفرض وارد کنید. مثال صحیح: 1405/05/01"); return; }
                     if(c.start >= c.end) { alert("تاریخ خاتمه باید بعد از تاریخ شروع باشد."); return; }
-                    if(c.start > '1405/05/01' || c.end < '1405/05/31') { alert("دوره فعال باید کل ماه مرداد را پوشش دهد."); return; }
+                    if(c.start > mStart || c.end < mEnd) { alert(`دوره فعال باید کل ماه ${this.currentReport.month} را پوشش دهد. (شروع باید ${mStart} یا قبلتر باشد و خاتمه ${mEnd} یا بعدتر)`); return; }
                 }
                 let idx = this.reports.findIndex(r => r.id === this.currentReport.id);
                 if (idx !== -1) { this.reports[idx] = JSON.parse(JSON.stringify(this.currentReport)); } else { this.reports.push(JSON.parse(JSON.stringify(this.currentReport))); }
@@ -635,7 +633,7 @@
             rejectCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'rejected'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'rejected'; alert('برگشت داده شد.'); this.currentPage = 'inbox'; },
 
             getInstructorStatus(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); return r ? r.status : 'not_submitted'; },
-            getInstructorTotalHours(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); if(!r) return 0; return r.partB.reduce((sum, a) => sum + (parseInt(a.hours) || 0), 0); },
+            getInstructorTotalHours(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); if(!r) return 0; return r.partB.reduce((sum, a) => sum + ((parseFloat(a.qty) || 0) * a.multiplier), 0); },
             getCenterStats(centerId) { let centerInstructors = this.instructors.filter(ins => ins.centerId === centerId); let approved = 0; centerInstructors.forEach(ins => { if(this.getInstructorStatus(ins.id) === 'approved') approved++; }); return { total: centerInstructors.length, approved: approved }; },
             getProvinceStats(provinceName) { let provinceCenters = this.centers.filter(c => c.province === provinceName); let approved = 0; provinceCenters.forEach(c => { approved += this.getCenterStats(c.id).approved; }); return { total: provinceCenters.length, approved: approved }; },
             openDrillDown(id) { this.drillDownCenterId = id; },
@@ -665,15 +663,112 @@
                 let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `report-${this.dashboardMonth}.csv`; link.click();
             },
 
-            totalHours() { if(!this.currentReport) return 0; return this.currentReport.partB.reduce((sum, a) => sum + (parseInt(a.hours) || 0), 0); },
-            downloadPDF() {
-                let report = this.currentReport; if (!report) return;
-                let partAHtml = report.partA.length > 0 ? report.partA.map((c, i) => `<tr><td>${i+1}</td><td>${c.title}</td><td>${c.hours}</td><td>${c.start}</td><td>${c.end}</td><td>${c.days}</td></tr>`).join('') : `<tr><td colspan="6">بدون دوره</td></tr>`;
-                let partBHtml = report.partB.map((a, i) => `<tr><td>${i+1}</td><td>${a.title}<br><small style="color:#666">${a.rule}</small></td><td>${a.hours}</td><td>${a.desc}</td></tr>`).join('');
+            totalHours() { if(!this.currentReport) return 0; return this.currentReport.partB.reduce((sum, a) => sum + ((parseFloat(a.qty) || 0) * a.multiplier), 0); },
+            
+            // Robust PDF Generator
+            downloadPDF(index) {
+                let report = index !== undefined ? this.reports[index] : this.currentReport;
+                if (!report) return;
+
+                let partAHtml = report.partA.length > 0 ? report.partA.map((c, i) => `<tr><td style="text-align:center">${i+1}</td><td>${c.title}</td><td style="text-align:center">${c.hours}</td><td style="text-align:center">${c.start}</td><td style="text-align:center">${c.end}</td><td style="text-align:center">${c.days}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center">بدون دوره فعال</td></tr>`;
+                
+                let partBHtml = report.partB.map((a, i) => {
+                    let calcHours = (parseFloat(a.qty) || 0) * a.multiplier;
+                    return `<tr><td style="text-align:center">${i+1}</td><td>${a.title}<br><small style="color:#666">${a.rule}</small></td><td style="text-align:center">${a.qty || 0}</td><td style="text-align:center">${calcHours}</td><td>${a.desc || ''}</td></tr>`;
+                }).join('');
+                
                 let totalHrs = this.totalHours();
-                const html = `<div style="font-family:sans-serif;padding:20px;direction:rtl;width:100%"><div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:20px"><h1>فرم گزارش فعالیت‌ها</h1></div><div style="font-size:12px;margin-bottom:20px;border:1px solid #ddd;padding:10px">سال: ${report.year} | ماه: ${report.month} | مرکز: ${report.centerName} | مربی: ${report.instructorName}</div><h3>بخش الف</h3><table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:20px"><thead><tr><th border:1px solid #ccc>عنوان</th><th>ساعت</th><th>شروع</th><th>خاتمه</th><th>روزها</th></tr></thead><tbody>${partAHtml}</tbody></table><h3>بخش ب</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th>عنوان</th><th>ساعت</th><th>توضیحات</th></tr></thead><tbody>${partBHtml}</tbody><tfoot><tr><td colspan="1">جمع کل:</td><td>${totalHrs}</td><td></td></tr></tfoot></table></div>`;
-                let temp = document.createElement('div'); temp.style.position = 'absolute'; temp.style.left = '-9999px'; temp.innerHTML = html; document.body.appendChild(temp);
-                html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}}).from(temp).save().then(()=>document.body.removeChild(temp));
+
+                const htmlContent = `
+                    <div style="font-family: 'Vazirmatn', sans-serif; padding: 20px; direction: rtl; color: #333; width: 100%;">
+                        <div style="text-align: center; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 20px;">
+                            <h1 style="font-size: 18px; margin: 0; color: #1e40af;">فرم گزارش فعالیت‌های پژوهشی، اداری و آموزش غیرموظفی</h1>
+                            <p style="font-size: 12px; color: #666; margin-top: 5px;">مراکز آموزش فنی و حرفه‌ای غیردولتی</p>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 12px; margin-bottom: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #f9f9f9;">
+                            <div><strong>سال:</strong> ${report.year}</div>
+                            <div><strong>ماه:</strong> ${report.month}</div>
+                            <div><strong>استان:</strong> ${report.province || '-'}</div>
+                            <div><strong>شهرستان:</strong> ${report.city || '-'}</div>
+                            <div><strong>مرکز:</strong> ${report.centerName}</div>
+                            <div><strong>مربی:</strong> ${report.instructorName} (${report.employmentType})</div>
+                        </div>
+                        
+                        <h3 style="background: #e2e8f0; padding: 5px; font-size: 14px; margin-bottom: 5px;">بخش الف: دوره‌های فعال</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px;">
+                            <thead style="background: #f1f5f9;">
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">ردیف</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">عنوان دوره</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">ساعت</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">شروع</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">خاتمه</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">روزها</th>
+                                </tr>
+                            </thead>
+                            <tbody>${partAHtml}</tbody>
+                        </table>
+
+                        <h3 style="background: #e2e8f0; padding: 5px; font-size: 14px; margin-bottom: 5px;">بخش ب: عملکرد فعالیت‌ها</h3>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                            <thead style="background: #f1f5f9;">
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">ردیف</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">عنوان فعالیت</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">حجم</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">ساعت</th>
+                                    <th style="border: 1px solid #ccc; padding: 5px;">توضیحات</th>
+                                </tr>
+                            </thead>
+                            <tbody>${partBHtml}</tbody>
+                            <tfoot>
+                                <tr style="background: #f1f5f9; font-weight: bold;">
+                                    <td colspan="3" style="border: 1px solid #ccc; padding: 5px; text-align: left;">جمع کل ساعت:</td>
+                                    <td style="border: 1px solid #ccc; padding: 5px; text-align: center;">${totalHrs}</td>
+                                    <td style="border: 1px solid #ccc; padding: 5px;"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        
+                        ${report.instructorNotes ? `<div style="margin-top: 20px; font-size: 12px;"><strong>توضیحات مربی:</strong> ${report.instructorNotes}</div>` : ''}
+                        ${report.headNotes ? `<div style="margin-top: 10px; font-size: 12px;"><strong>توضیحات رئیس مرکز:</strong> ${report.headNotes}</div>` : ''}
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 80px; text-align: center; font-size: 12px;">
+                            <div style="padding-left: 20px; text-align: center;">
+                                <p>مهر و امضای مربی</p>
+                                <div style="margin-top: 60px; border-top: 1px solid #999; padding-top: 5px;">
+                                    <strong>${report.instructorName}</strong>
+                                </div>
+                            </div>
+                            <div style="padding-right: 20px; text-align: center;">
+                                <p>مهر و امضای رئیس مرکز</p>
+                                <div style="margin-top: 60px; border-top: 1px solid #999; padding-top: 5px;">
+                                    <strong>${this.currentUserInfo.fullName}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                let tempDiv = document.createElement('div');
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '0';
+                tempDiv.style.width = '210mm';
+                tempDiv.innerHTML = htmlContent;
+                document.body.appendChild(tempDiv);
+
+                const opt = {
+                    margin:      [10, 10, 10, 10],
+                    filename:    'گزارش-فعالیت-' + report.instructorName + '.pdf',
+                    image:       { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(tempDiv).save().then(() => {
+                    document.body.removeChild(tempDiv);
+                });
             }
         }
     }
