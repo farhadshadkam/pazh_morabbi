@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سامانه رصد فعالیت های مربیان فنی و حرفه ای</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
+        input[type="text"], input[type="number"], input[type="password"], select, textarea { 
+            border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; width: 100%; transition: all 0.2s; background-color: #fff; font-size: 14px;
+        }
+        input:disabled, textarea:disabled { background-color: #f1f5f9; color: #64748b; cursor: not-allowed; }
+        input:focus, textarea:focus, select:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); outline: none; }
+        .modal-overlay { background: rgba(0, 0, 0, 0.6); }
+        .activity-rule { font-size: 11px; color: #64748b; display: block; margin-top: 4px; font-weight: normal; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+<div x-data="app()" class="min-h-screen">
+
+    <!-- Login Screen -->
+    <template x-if="!loggedIn">
+        <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-blue-900 p-4">
+            <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-3xl">📊</div>
+                    <h1 class="text-2xl font-bold text-slate-800">سامانه رصد فعالیت‌ها</h1>
+                    <p class="text-sm text-gray-500 mt-2">مراکز آموزش فنی و حرفه‌ای غیردولتی</p>
+                </div>
+                <div x-show="loginError" x-transition class="bg-red-50 border-r-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+                    <p x-text="loginError"></p>
+                </div>
+                <form @submit.prevent="login()" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-600">نام کاربری</label>
+                        <input type="text" x-model="username" @input="loginError = ''" class="w-full p-2.5 border rounded-lg outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-600">رمز عبور</label>
+                        <input type="password" x-model="password" @input="loginError = ''" class="w-full p-2.5 border rounded-lg outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition">ورود به سامانه</button>
+                </form>
+                <div class="mt-6 text-xs text-gray-400 bg-slate-50 p-3 rounded">
+                    <p>برای تست: فقط با ادمین <code>admin</code> (رمز: 123) وارد شوید و کاربران دیگر را بسازید.</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Main App -->
+    <template x-if="loggedIn">
+        <div class="min-h-screen flex">
+            <aside class="w-64 bg-slate-800 text-white flex flex-col fixed h-full">
+                <div class="p-4 text-center border-b border-slate-700">
+                    <h1 class="text-lg font-bold">پنل کاربری</h1>
+                    <p class="text-xs text-blue-400 mt-1 font-bold" x-text="roles.find(r => r.id === currentRole).name"></p>
+                </div>
+                <nav class="flex-1 p-3 space-y-2 overflow-y-auto">
+                    <button @click="currentPage = 'dashboard'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'dashboard', 'hover:bg-slate-700': currentPage !== 'dashboard'}"><span>🏠</span> <span>داشبورد</span></button>
+                    
+                    <template x-if="currentRole === 'admin'">
+                        <div class="space-y-2">
+                            <button @click="currentPage = 'locations'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'locations', 'hover:bg-slate-700': currentPage !== 'locations'}"><span>🗺️</span> <span>مدیریت مناطق</span></button>
+                            <button @click="currentPage = 'manage_experts'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'manage_experts', 'hover:bg-slate-700': currentPage !== 'manage_experts'}"><span>👔</span> <span>مدیریت کارشناسان</span></button>
+                            <button @click="currentPage = 'charts'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'charts', 'hover:bg-slate-700': currentPage !== 'charts'}"><span>📈</span> <span>نمودار عملکرد استان‌ها</span></button>
+                        </div>
+                    </template>
+                    <template x-if="currentRole === 'expert'">
+                        <div class="space-y-2">
+                            <button @click="currentPage = 'centers'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'centers', 'hover:bg-slate-700': currentPage !== 'centers'}"><span>🏫</span> <span>مدیریت مراکز</span></button>
+                            <button @click="currentPage = 'charts'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'charts', 'hover:bg-slate-700': currentPage !== 'charts'}"><span>📈</span> <span>نمودار مراکز</span></button>
+                        </div>
+                    </template>
+                    <template x-if="currentRole === 'head'">
+                        <div class="space-y-2">
+                            <button @click="currentPage = 'instructors'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'instructors', 'hover:bg-slate-700': currentPage !== 'instructors'}"><span>👥</span> <span>مدیریت مربیان</span></button>
+                            <button @click="currentPage = 'inbox'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'inbox', 'hover:bg-slate-700': currentPage !== 'inbox'}"><span>📥</span> <span>صندوق دریافتی</span></button>
+                        </div>
+                    </template>
+                    <template x-if="currentRole === 'instructor'">
+                        <div class="space-y-2">
+                            <button @click="openNewForm()" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'form', 'hover:bg-slate-700': currentPage !== 'form'}"><span>📝</span> <span x-text="getInstructorFormButtonText()"></span></button>
+                            <button @click="currentPage = 'history'" class="w-full text-right p-3 rounded-lg transition flex items-center gap-3" :class="{'bg-blue-600': currentPage === 'history', 'hover:bg-slate-700': currentPage !== 'history'}"><span>📂</span> <span>سابقه گزارش‌ها</span></button>
+                        </div>
+                    </template>
+                </nav>
+                <div class="p-4 border-t border-slate-700">
+                    <button @click="logout()" class="w-full text-right p-2 rounded-lg hover:bg-red-600/80 transition text-red-400 flex items-center gap-3 text-sm"><span>🚪</span> <span>خروج از سامانه</span></button>
+                </div>
+            </aside>
+
+            <main class="flex-1 flex flex-col bg-slate-100 mr-64">
+                <header class="bg-white p-4 shadow-sm flex justify-between items-center border-b border-slate-200">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800" x-text="roles.find(r => r.id === currentRole).name"></h2>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <span x-text="currentUserInfo.fullName"></span> | 
+                            مرکز: <span x-text="currentUserInfo.centerName"></span> | 
+                            استان: <span x-text="currentUserInfo.provinceName"></span>
+                        </p>
+                    </div>
+                    <div class="text-sm bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-medium">
+                        امروز سیستم: <span x-text="systemDate.year + '/' + systemDate.month + '/' + systemDate.day"></span>
+                    </div>
+                </header>
+
+                <div class="flex-1 p-6 overflow-y-auto">
+                    
+                    <!-- DASHBOARDS -->
+                    <div x-show="currentPage === 'dashboard'" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h3 class="text-sm font-medium text-gray-500">گزارش‌های تایید شده</h3><p class="text-3xl font-bold text-green-600 mt-2" x-text="reports.filter(r => r.status === 'approved').length"></p></div>
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h3 class="text-sm font-medium text-gray-500">در انتظار تایید</h3><p class="text-3xl font-bold text-yellow-500 mt-2" x-text="reports.filter(r => r.status === 'pending').length"></p></div>
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200"><h3 class="text-sm font-medium text-gray-500">عدم تکمیل / برگشتی</h3><p class="text-3xl font-bold text-red-500 mt-2" x-text="reports.filter(r => r.status === 'rejected').length"></p></div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex gap-4 items-end" x-show="currentRole === 'head' || currentRole === 'expert' || currentRole === 'admin'">
+                            <div class="w-40">
+                                <label class="block text-xs mb-1 text-gray-500">سال:</label>
+                                <select x-model="dashboardYear">
+                                    <option value="۱۴۰۳">۱۴۰۳</option><option value="۱۴۰۴">۱۴۰۴</option><option value="۱۴۰۵" selected>۱۴۰۵</option><option value="۱۴۰۶">۱۴۰۶</option>
+                                    <option value="۱۴۰۷">۱۴۰۷</option><option value="۱۴۰۸">۱۴۰۸</option><option value="۱۴۰۹">۱۴۰۹</option><option value="۱۴۱۰">۱۴۱۰</option>
+                                </select>
+                            </div>
+                            <div class="w-40">
+                                <label class="block text-xs mb-1 text-gray-500">ماه:</label>
+                                <select x-model="dashboardMonth">
+                                    <option value="فروردین">فروردین</option><option value="اردیبهشت">اردیبهشت</option><option value="خرداد">خرداد</option><option value="تیر">تیر</option>
+                                    <option value="مرداد">مرداد</option><option value="شهریور">شهریور</option><option value="مهر">مهر</option><option value="آبان">آبان</option>
+                                    <option value="آذر">آذر</option><option value="دی">دی</option><option value="بهمن">بهمن</option><option value="اسفند">اسفند</option>
+                                </select>
+                            </div>
+                            <button @click="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">اعمال فیلتر</button>
+                            <button x-show="currentRole === 'expert' || currentRole === 'admin'" @click="exportToCSV()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm mr-auto">📥 دریافت اکسل (CSV)</button>
+                        </div>
+
+                        <div x-show="currentRole === 'admin'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold mb-4">وضعیت استان‌ها در ماه: <span x-text="dashboardMonth"></span></h3>
+                            <table class="w-full text-sm">
+                                <thead class="bg-slate-50 text-slate-600"><tr class="border-b">
+                                    <th class="p-3 text-right">استان</th><th class="p-3 text-center">تعداد مراکز</th><th class="p-3 text-center">گزارش‌های تایید شده</th><th class="p-3 text-center">عملیات</th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="(p, i) in provinces" :key="i">
+                                        <tr class="border-b hover:bg-slate-50">
+                                            <td class="p-3" x-text="p.name"></td>
+                                            <td class="p-3 text-center" x-text="centers.filter(c => c.province === p.name).length"></td>
+                                            <td class="p-3 text-center text-green-600 font-bold" x-text="getProvinceStats(p.name).approved"></td>
+                                            <td class="p-3 text-center"><button @click="openDrillDownProvince(p.name)" class="text-blue-600 hover:underline">جزئیات مراکز</button></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div x-show="currentRole === 'head'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold mb-4">وضعیت مربیان مرکز در ماه: <span x-text="dashboardMonth"></span></h3>
+                            <table class="w-full text-sm">
+                                <thead class="bg-slate-50 text-slate-600"><tr class="border-b">
+                                    <th class="p-3 text-right">نام مربی</th><th class="p-3 text-right">نوع استخدام</th><th class="p-3 text-center">وضعیت گزارش</th><th class="p-3 text-center">جمع ساعت</th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="(ins, i) in instructors.filter(inst => inst.centerId === currentUserId)" :key="i">
+                                        <tr class="border-b hover:bg-slate-50">
+                                            <td class="p-3" x-text="ins.firstName + ' ' + ins.lastName"></td>
+                                            <td class="p-3" x-text="ins.empType"></td>
+                                            <td class="p-3 text-center">
+                                                <span x-show="getInstructorStatus(ins.id) === 'not_submitted'" class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs">تکمیل نشده</span>
+                                                <span x-show="getInstructorStatus(ins.id) === 'pending'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs">در انتظار</span>
+                                                <span x-show="getInstructorStatus(ins.id) === 'approved'" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">تایید شده</span>
+                                                <span x-show="getInstructorStatus(ins.id) === 'rejected'" class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs">برگشتی</span>
+                                            </td>
+                                            <td class="p-3 text-center" x-text="getInstructorTotalHours(ins.id) + ' ساعت'"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div x-show="currentRole === 'expert'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold mb-4">وضعیت مراکز در ماه: <span x-text="dashboardMonth"></span></h3>
+                            <table class="w-full text-sm">
+                                <thead class="bg-slate-50 text-slate-600"><tr class="border-b">
+                                    <th class="p-3 text-right">مرکز</th><th class="p-3 text-center">مربیان</th><th class="p-3 text-center">تایید شده</th><th class="p-3 text-center">عملیات</th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="(c, i) in centers" :key="i">
+                                        <tr class="border-b hover:bg-slate-50">
+                                            <td class="p-3" x-text="c.centerName"></td>
+                                            <td class="p-3 text-center" x-text="instructors.filter(ins => ins.centerId === c.id).length"></td>
+                                            <td class="p-3 text-center text-green-600 font-bold" x-text="getCenterStats(c.id).approved"></td>
+                                            <td class="p-3 text-center"><button @click="openDrillDown(c.id)" class="text-blue-600 hover:underline">جزئیات مربیان</button></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Chart Page -->
+                    <div x-show="currentPage === 'charts'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold mb-4">نمودار درصد تکمیل <span x-text="currentRole === 'admin' ? 'استان‌ها' : 'مراکز'"></span> (سال <span x-text="dashboardYear"></span> - ماه <span x-text="dashboardMonth"></span>)</h3>
+                        <div class="flex gap-4 items-end mb-6">
+                            <div class="w-40">
+                                <label class="block text-xs mb-1 text-gray-500">سال:</label>
+                                <select x-model="dashboardYear">
+                                    <option value="۱۴۰۳">۱۴۰۳</option><option value="۱۴۰۴">۱۴۰۴</option><option value="۱۴۰۵" selected>۱۴۰۵</option><option value="۱۴۰۶">۱۴۰۶</option>
+                                </select>
+                            </div>
+                            <div class="w-40">
+                                <label class="block text-xs mb-1 text-gray-500">ماه:</label>
+                                <select x-model="dashboardMonth">
+                                    <option value="مرداد">مرداد</option><option value="شهریور">شهریور</option>
+                                </select>
+                            </div>
+                            <button @click="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">اعمال فیلتر</button>
+                        </div>
+                        <div style="height: 450px; width: 100%;">
+                            <canvas id="approvalChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Locations -->
+                    <div x-show="currentPage === 'locations'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h2 class="text-xl font-bold mb-6">مدیریت استان‌ها و شهرستان‌ها</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="font-bold mb-2">افزودن استان</h3>
+                                <div class="flex gap-2"><input type="text" x-model="newProvince" placeholder="نام استان"><button @click="addProvince()" class="bg-blue-600 text-white px-4 py-2 rounded-lg whitespace-nowrap">افزودن</button></div>
+                                <ul class="mt-4 border rounded-lg divide-y">
+                                    <template x-for="(p, i) in provinces" :key="i"><li class="p-3 flex justify-between items-center hover:bg-slate-50"><span x-text="p.name"></span><button @click="provinces.splice(i, 1)" class="text-red-500 text-xs">حذف</button></li></template>
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 class="font-bold mb-2">افزودن شهرستان</h3>
+                                <div class="space-y-2">
+                                    <select x-model="selectedProvinceForCity"><option value="">انتخاب استان...</option><template x-for="(p, i) in provinces" :key="i"><option :value="p.name" x-text="p.name"></option></template></select>
+                                    <input type="text" x-model="newCity" placeholder="نام شهرستان">
+                                    <button @click="addCity()" class="bg-blue-600 text-white px-4 py-2 rounded-lg w-full">افزودن شهرستان</button>
+                                </div>
+                                <ul class="mt-4 border rounded-lg divide-y max-h-48 overflow-y-auto">
+                                    <template x-if="selectedProvinceForCity"><template x-for="(p, i) in provinces" :key="i"><template x-if="p.name === selectedProvinceForCity"><template x-for="(c, j) in p.cities" :key="j"><li class="p-3 flex justify-between items-center hover:bg-slate-50"><span x-text="c"></span><button @click="provinces[i].cities.splice(j, 1)" class="text-red-500 text-xs">حذف</button></li></template></template></template></template>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Manage Experts -->
+                    <div x-show="currentPage === 'manage_experts'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between mb-6">
+                            <h2 class="text-xl font-bold">مدیریت کارشناسان اداره کل</h2>
+                            <button @click="openExpertModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">➕ افزودن کارشناس</button>
+                        </div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-slate-600"><tr class="border-b"><th class="p-3 text-right">استان</th><th class="p-3 text-right">نام کارشناس</th><th class="p-3 text-right">شماره تلفن</th><th class="p-3 text-right">نام کاربری</th><th class="p-3 text-center">عملیات</th></tr></thead>
+                            <tbody>
+                                <template x-if="experts.length === 0"><tr><td colspan="5" class="p-8 text-center text-gray-400">کارشناسی ثبت نشده است.</td></tr></template>
+                                <template x-for="(e, i) in experts" :key="i">
+                                    <tr class="border-b hover:bg-slate-50">
+                                        <td class="p-3" x-text="e.province"></td><td class="p-3" x-text="e.name"></td><td class="p-3" x-text="e.phone"></td><td class="p-3" x-text="e.username"></td>
+                                        <td class="p-3 text-center space-x-2"><button @click="openExpertModal(i)" class="text-blue-600">ویرایش</button><button @click="deleteExpert(i)" class="text-red-500">حذف</button></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Centers -->
+                    <div x-show="currentPage === 'centers'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between mb-6"><h2 class="text-xl font-bold">مدیریت مراکز آموزشی</h2><button @click="openCenterModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">➕ افزودن مرکز</button></div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-slate-600"><tr class="border-b"><th class="p-3 text-right">استان</th><th class="p-3 text-right">شهرستان</th><th class="p-3 text-right">نام مرکز</th><th class="p-3 text-right">رئیس مرکز</th><th class="p-3 text-center">عملیات</th></tr></thead>
+                            <tbody>
+                                <template x-if="centers.length === 0"><tr><td colspan="5" class="p-8 text-center text-gray-400">مرکزی ثبت نشده است.</td></tr></template>
+                                <template x-for="(c, i) in centers" :key="i"><tr class="border-b hover:bg-slate-50"><td class="p-3" x-text="c.province"></td><td class="p-3" x-text="c.city"></td><td class="p-3 font-medium" x-text="c.centerName"></td><td class="p-3" x-text="c.headName"></td><td class="p-3 text-center space-x-2"><button @click="openCenterModal(i)" class="text-blue-600">ویرایش</button><button @click="deleteCenter(i)" class="text-red-500">حذف</button></td></tr></template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Instructors -->
+                    <div x-show="currentPage === 'instructors'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between mb-6"><h2 class="text-xl font-bold">مدیریت مربیان مرکز</h2><button @click="openInstructorModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">➕ افزودن مربی</button></div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-slate-600"><tr class="border-b"><th class="p-3 text-right">نام مربی</th><th class="p-3 text-right">کد ملی</th><th class="p-3 text-right">نوع استخدام</th><th class="p-3 text-right">شماره تلفن</th><th class="p-3 text-center">عملیات</th></tr></thead>
+                            <tbody>
+                                <template x-if="instructors.length === 0"><tr><td colspan="5" class="p-8 text-center text-gray-400">مربی ثبت نشده است.</td></tr></template>
+                                <template x-for="(ins, i) in instructors" :key="i"><tr class="border-b hover:bg-slate-50" x-show="ins.centerId === currentUserId"><td class="p-3 font-medium" x-text="ins.firstName + ' ' + ins.lastName"></td><td class="p-3" x-text="ins.nationalId"></td><td class="p-3"><span class="text-xs px-2 py-1 rounded" :class="ins.empType === 'رسمی' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'" x-text="ins.empType"></span></td><td class="p-3" x-text="ins.phone"></td><td class="p-3 text-center space-x-2"><button @click="openInstructorModal(i)" class="text-blue-600">ویرایش</button><button @click="deleteInstructor(i)" class="text-red-500">حذف</button></td></tr></template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Inbox -->
+                    <div x-show="currentPage === 'inbox'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h2 class="text-xl font-bold mb-6">صندوق دریافتی گزارش‌ها</h2>
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-slate-600"><tr class="border-b"><th class="p-3 text-right">نام مربی</th><th class="p-3 text-right">ماه</th><th class="p-3 text-center">وضعیت</th><th class="p-3 text-center">عملیات</th></tr></thead>
+                            <tbody>
+                                <template x-for="(r, i) in reports" :key="i"><tr class="border-b hover:bg-slate-50" x-show="r.centerId === currentUserId"><td class="p-3" x-text="r.instructorName"></td><td class="p-3" x-text="r.month + ' ' + r.year"></td><td class="p-3 text-center"><span x-show="r.status === 'pending'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs">در انتظار</span><span x-show="r.status === 'approved'" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">تایید شده</span><span x-show="r.status === 'rejected'" class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs">برگشتی</span></td><td class="p-3 text-center space-x-2"><button @click="viewReport(i)" class="text-blue-600">مشاهده فرم</button></td></tr></template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- History -->
+                    <div x-show="currentPage === 'history'" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h2 class="text-xl font-bold mb-6">سابقه گزارش‌های ارسالی</h2>
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-slate-600"><tr class="border-b"><th class="p-3 text-right">ماه / سال</th><th class="p-3 text-center">وضعیت</th><th class="p-3 text-center">عملیات</th></tr></thead>
+                            <tbody>
+                                <template x-for="(r, i) in reports" :key="i"><tr class="border-b hover:bg-slate-50" x-show="r.instructorId === currentUserId"><td class="p-3" x-text="r.month + ' ' + r.year"></td><td class="p-3 text-center"><span x-show="r.status === 'pending'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs">در انتظار</span><span x-show="r.status === 'approved'" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">تایید شده</span><span x-show="r.status === 'rejected'" class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs">برگشتی</span></td><td class="p-3 text-center space-x-2"><button @click="viewReport(i)" class="text-blue-600">مشاهده</button><button @click="downloadPDF(i)" class="text-red-500">دانلود PDF</button></td></tr></template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Form View -->
+                    <div x-show="currentPage === 'form'" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 max-w-6xl mx-auto">
+                        <div class="flex justify-between mb-8 items-center border-b pb-4">
+                            <h2 class="text-2xl font-bold text-slate-800">فرم فعالیت‌های ماهانه</h2>
+                            <div class="flex gap-2 items-center">
+                                <div x-show="isFormReadOnly" class="bg-red-100 text-red-700 px-3 py-1 rounded text-sm font-bold">فقط خواندنی (تایید شده)</div>
+                                <button @click="downloadPDF()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm">استخراج PDF</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6 mb-8 bg-slate-50 p-4 rounded-lg">
+                            <div><label class="text-sm mb-2 block">سال:</label><select x-model="currentReport.year" :disabled="isFormReadOnly"><option value="۱۴۰۵" selected>۱۴۰۵</option></select></div>
+                            <div><label class="text-sm mb-2 block">ماه:</label><select x-model="currentReport.month" :disabled="isFormReadOnly"><option value="مرداد" selected>مرداد</option></select></div>
+                        </div>
+
+                        <div class="mb-10">
+                            <div class="flex justify-between mb-3"><h3 class="bg-slate-200 px-4 py-2 font-bold rounded-t-lg">بخش الف: دوره‌های فعال</h3><button @click="addCourse()" x-show="!isFormReadOnly" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded">+ ردیف</button></div>
+                            <table class="w-full text-sm border border-collapse">
+                                <thead class="bg-slate-100"><tr><th class="border p-2">ردیف</th><th class="border p-2">عنوان دوره</th><th class="border p-2">ساعت</th><th class="border p-2">شروع (شمسی)</th><th class="border p-2">خاتمه (شمسی)</th><th class="border p-2">روزها</th><th class="border p-2" x-show="!isFormReadOnly">حذف</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(c, i) in currentReport.partA" :key="i">
+                                        <tr>
+                                            <td class="border p-2 text-center" x-text="i+1"></td>
+                                            <td class="border p-1"><input type="text" x-model="c.title" :disabled="isFormReadOnly" class="border-none p-0"></td>
+                                            <td class="border p-1"><input type="number" x-model="c.hours" :disabled="isFormReadOnly" class="border-none p-0"></td>
+                                            <td class="border p-1"><input type="text" x-model="c.start" :disabled="isFormReadOnly" placeholder="1405/05/01" class="border-none p-0"></td>
+                                            <td class="border p-1"><input type="text" x-model="c.end" :disabled="isFormReadOnly" placeholder="1405/05/31" class="border-none p-0"></td>
+                                            <td class="border p-1"><input type="text" x-model="c.days" :disabled="isFormReadOnly" class="border-none p-0"></td>
+                                            <td class="border p-2 text-center text-red-500 cursor-pointer" x-show="!isFormReadOnly" @click="currentReport.partA.splice(i,1)">✖</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mb-10">
+                            <h3 class="bg-slate-200 px-4 py-2 font-bold mb-3 rounded-t-lg">بخش ب: عملکرد فعالیت‌ها</h3>
+                            <table class="w-full text-sm border border-collapse">
+                                <thead class="bg-slate-100"><tr><th class="border p-2">ردیف</th><th class="border p-2">عنوان فعالیت و مرجع محاسبه</th><th class="border p-2 w-32">ساعت</th><th class="border p-2">توضیحات</th></tr></thead>
+                                <tbody>
+                                    <template x-for="(a, i) in currentReport.partB" :key="i">
+                                        <tr>
+                                            <td class="border p-2 text-center" x-text="i+1"></td>
+                                            <td class="border p-2">
+                                                <span class="font-medium" x-text="a.title"></span>
+                                                <span class="activity-rule" x-text="a.rule"></span>
+                                            </td>
+                                            <td class="border p-1"><input type="number" x-model="a.hours" :disabled="isFormReadOnly" class="border-none p-0 text-center"></td>
+                                            <td class="border p-1"><input type="text" x-model="a.desc" :disabled="isFormReadOnly" class="border-none p-0"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                                <tfoot><tr class="bg-slate-100 font-bold"><td class="border p-2 text-left" colspan="2">جمع کل ساعت فعالیت‌ها:</td><td class="border p-2 text-center" x-text="totalHours()"></td><td class="border p-2"></td></tr></tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Notes Section -->
+                        <div class="mb-10 space-y-6">
+                            <div>
+                                <h3 class="bg-slate-200 px-4 py-2 font-bold mb-3 rounded-t-lg">توضیحات مربی</h3>
+                                <textarea x-model="currentReport.instructorNotes" :disabled="isFormReadOnly || currentRole === 'head'" rows="3" placeholder="توضیحات اضافی مربی در خصوص فعالیت‌های این ماه..." class="w-full p-2 border rounded"></textarea>
+                            </div>
+                            <div x-show="currentRole === 'head' || (currentRole === 'instructor' && currentReport.visibleToInstructor) || (currentRole === 'expert' && currentReport.visibleToExpert)">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="bg-slate-200 px-4 py-2 font-bold rounded-t-lg">توضیحات رئیس مرکز</h3>
+                                    <div class="flex gap-4 text-xs" x-show="currentRole === 'head' && !isFormReadOnly">
+                                        <label class="flex items-center gap-1"><input type="checkbox" x-model="currentReport.visibleToInstructor"> رویت مربی</label>
+                                        <label class="flex items-center gap-1"><input type="checkbox" x-model="currentReport.visibleToExpert"> رویت کارشناس اداره کل</label>
+                                    </div>
+                                </div>
+                                <textarea x-model="currentReport.headNotes" :disabled="currentRole !== 'head' || isFormReadOnly" rows="3" placeholder="توضیحات رئیس مرکز (مثلاً مرخصی استعلاجی، عملکرد ضعیف و...)" class="w-full p-2 border rounded"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3 mt-6 border-t pt-6">
+                            <button @click="currentPage = currentRole === 'head' ? 'inbox' : 'history'" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button>
+                            <template x-if="currentRole === 'instructor' && !isFormReadOnly"><button @click="saveReport()" class="bg-green-600 text-white px-6 py-2 rounded-lg">ثبت و ارسال</button></template>
+                            <template x-if="currentRole === 'head' && currentReport.status === 'pending'">
+                                <div class="flex gap-2">
+                                    <button @click="rejectCurrentReport()" class="bg-red-500 text-white px-4 py-2 rounded-lg">برگرداندن به مربی</button>
+                                    <button @click="approveCurrentReport()" class="bg-green-600 text-white px-6 py-2 rounded-lg">تایید نهایی</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </template>
+
+    <!-- Modals -->
+    <div x-show="showExpertModal" x-transition class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <h3 class="text-xl font-bold mb-4" x-text="expertForm.id !== null ? 'ویرایش کارشناس' : 'افزودن کارشناس'"></h3>
+            <div class="space-y-4">
+                <div><label class="block text-sm mb-1">استان</label><select x-model="expertForm.province"><option value="">انتخاب...</option><template x-for="(p, i) in provinces" :key="i"><option :value="p.name" x-text="p.name"></option></template></select></div>
+                <div><label class="block text-sm mb-1">نام و نام خانوادگی</label><input type="text" x-model="expertForm.name"></div>
+                <div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="expertForm.phone"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">نام کاربری</label><input type="text" x-model="expertForm.username"></div>
+                    <div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="expertForm.password"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6"><button @click="showExpertModal = false" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button><button @click="saveExpert()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">ذخیره</button></div>
+        </div>
+    </div>
+
+    <div x-show="showCenterModal" x-transition class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <h3 class="text-xl font-bold mb-4" x-text="centerForm.id !== null ? 'ویرایش مرکز' : 'افزودن مرکز'"></h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">استان</label><select x-model="centerForm.province" @change="centerForm.city = ''"><option value="">انتخاب...</option><template x-for="(p, i) in provinces" :key="i"><option :value="p.name" x-text="p.name"></option></template></select></div>
+                    <div><label class="block text-sm mb-1">شهرستان</label><select x-model="centerForm.city" :disabled="!centerForm.province"><option value="">انتخاب...</option><template x-if="centerForm.province"><template x-for="(p, i) in provinces" :key="i"><template x-if="p.name === centerForm.province"><template x-for="(c, j) in p.cities" :key="j"><option :value="c" x-text="c"></option></template></template></template></template></select></div>
+                </div>
+                <div><label class="block text-sm mb-1">نام مرکز</label><input type="text" x-model="centerForm.centerName"></div>
+                <div><label class="block text-sm mb-1">نام رئیس مرکز</label><input type="text" x-model="centerForm.headName"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="centerForm.headPhone"></div>
+                    <div><label class="block text-sm mb-1">نام کاربری رئیس مرکز</label><input type="text" x-model="centerForm.headUsername"></div>
+                </div>
+                <div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="centerForm.headPassword"></div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6"><button @click="showCenterModal = false" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button><button @click="saveCenter()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">ذخیره</button></div>
+        </div>
+    </div>
+
+    <div x-show="showInstructorModal" x-transition class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <h3 class="text-xl font-bold mb-4" x-text="instructorForm.id !== null ? 'ویرایش مربی' : 'افزودن مربی'"></h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">نام</label><input type="text" x-model="instructorForm.firstName"></div>
+                    <div><label class="block text-sm mb-1">نام خانوادگی</label><input type="text" x-model="instructorForm.lastName"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">کد ملی</label><input type="text" x-model="instructorForm.nationalId"></div>
+                    <div><label class="block text-sm mb-1">شماره تلفن</label><input type="text" x-model="instructorForm.phone"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm mb-1">نوع استخدام</label><select x-model="instructorForm.empType"><option value="رسمی">رسمی</option><option value="پیمانی">پیمانی</option></select></div>
+                    <div><label class="block text-sm mb-1">نام کاربری</label><input type="text" x-model="instructorForm.username"></div>
+                </div>
+                <div><label class="block text-sm mb-1">رمز عبور</label><input type="text" x-model="instructorForm.password"></div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6"><button @click="showInstructorModal = false" class="bg-slate-200 px-4 py-2 rounded-lg">انصراف</button><button @click="saveInstructor()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">ذخیره</button></div>
+        </div>
+    </div>
+
+    <!-- Admin Drill Down Province Modal -->
+    <div x-show="drillDownProvince !== null" x-transition class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6">
+            <div class="flex justify-between mb-4"><h3 class="text-xl font-bold">مراکز استان: <span x-text="drillDownProvince"></span></h3><button @click="drillDownProvince = null" class="text-red-500">بستن ✖</button></div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50"><tr><th class="p-3 text-right">مرکز</th><th class="p-3 text-center">تعداد مربیان</th><th class="p-3 text-center">گزارش‌های تایید شده</th><th class="p-3 text-center">عملیات</th></tr></thead>
+                <tbody>
+                    <template x-for="(c, i) in centers.filter(c => c.province === drillDownProvince)" :key="i">
+                        <tr class="border-b">
+                            <td class="p-3" x-text="c.centerName"></td>
+                            <td class="p-3 text-center" x-text="instructors.filter(ins => ins.centerId === c.id).length"></td>
+                            <td class="p-3 text-center text-green-600 font-bold" x-text="getCenterStats(c.id).approved"></td>
+                            <td class="p-3 text-center"><button @click="openDrillDown(c.id)" class="text-blue-600 hover:underline">جزئیات مربیان</button></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Drill Down Center Modal -->
+    <div x-show="drillDownCenterId !== null" x-transition class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl p-6">
+            <div class="flex justify-between mb-4"><h3 class="text-xl font-bold">جزئیات مربیان مرکز: <span x-text="centers.find(c => c.id === drillDownCenterId)?.centerName"></span></h3><button @click="drillDownCenterId = null" class="text-red-500">بستن ✖</button></div>
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50"><tr><th class="p-3 text-right">مربی</th><th class="p-3 text-center">وضعیت در ماه جاری</th><th class="p-3 text-center">ساعت</th></tr></thead>
+                <tbody>
+                    <template x-for="(ins, i) in instructors.filter(inst => inst.centerId === drillDownCenterId)" :key="i">
+                        <tr class="border-b">
+                            <td class="p-3" x-text="ins.firstName + ' ' + ins.lastName"></td>
+                            <td class="p-3 text-center">
+                                <span x-show="getInstructorStatus(ins.id) === 'not_submitted'" class="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs">تکمیل نشده</span>
+                                <span x-show="getInstructorStatus(ins.id) === 'approved'" class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">تایید شده</span>
+                                <span x-show="getInstructorStatus(ins.id) === 'pending'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs">در انتظار</span>
+                            </td>
+                            <td class="p-3 text-center" x-text="getInstructorTotalHours(ins.id)"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function app() {
+        return {
+            loggedIn: false, username: '', password: '', loginError: '',
+            currentRole: 'instructor', currentPage: 'dashboard', currentUserId: null,
+            currentUserInfo: { fullName: '', centerName: '-', provinceName: '-' },
+            roles: [{id:'admin',name:'ادمین'},{id:'expert',name:'کارشناس'},{id:'head',name:'رئیس مرکز'},{id:'instructor',name:'مربی'}],
+            
+            systemDate: { year: 1405, month: 6, day: 31 },
+            previousMonth: { year: 1405, month: 5 },
+
+            registeredUsers: [{ username: 'admin', password: '123', role: 'admin', id: 'u1' }],
+            provinces: [{ name: 'تهران', cities: ['تهران', 'ری'] }],
+            experts: [], centers: [], instructors: [], reports: [], currentReport: null,
+            showCenterModal: false, centerForm: {}, showInstructorModal: false, instructorForm: {}, showExpertModal: false, expertForm: {},
+            dashboardYear: '۱۴۰۵', dashboardMonth: 'مرداد', drillDownCenterId: null, drillDownProvince: null, chartInstance: null,
+            newProvince: '', newCity: '', selectedProvinceForCity: '', isFormReadOnly: false,
+            
+            defaultActivities: [
+                { title: 'بازرسی از آموزشگاههای فنی و حرفه ای آزاد', rule: 'هر بازدید استاندارد: ۲ ساعت' },
+                { title: 'همکاری در اجرای کلان پروژه های سازمان', rule: 'بر اساس ساعت واقعی حضور تایید شده' },
+                { title: 'طراحی پروژه مسابقات ملی مهارت سطح کشوری', rule: 'هر پروژه: حداکثر ۴۰ ساعت' },
+                { title: 'طراحی پروژه مساباقات ملی مهارت سطح استانی', rule: 'هر پروژه: حداکثر ۳۰ ساعت' },
+                { title: 'آموزش به رقابت کنندگان مسابقات ملی مهارت سطح کشوری', rule: 'ساعت واقعی آموزش (حداکثر ۱۰ ساعت در روز)' },
+                { title: 'بازنگری استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۲۰ ساعت' },
+                { title: 'تدوین استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۴۰ ساعت' },
+                { title: 'اجرای آزمون عملی', rule: 'هر آزمون: ۱ ساعت' },
+                { title: 'طراحی سؤال', rule: 'هر سؤال: ۱ ساعت' },
+                { title: 'ممیزی سؤال', rule: 'هر سؤال: ۰.۵ ساعت' },
+                { title: 'طراحی پروژه عملی', rule: 'هر پروژه: ۱۰ ساعت' },
+                { title: 'ممیزی پروژه عملی', rule: 'هر پروژه: ۵ ساعت' }
+            ],
+
+            login() {
+                let user = this.registeredUsers.find(u => u.username === this.username && u.password === this.password);
+                if (user) { 
+                    this.currentRole = user.role; this.currentUserId = user.id; this.loggedIn = true; this.currentPage = 'dashboard'; 
+                    this.currentUserInfo = this.getUserInfo(user);
+                    this.$nextTick(() => { if(this.currentRole === 'expert' || this.currentRole === 'admin') this.renderChart(); }); 
+                } else { 
+                    this.loginError = 'نام کاربری یا رمز عبور اشتباه است یا در سامانه ثبت نشده اید.'; 
+                }
+            },
+            getUserInfo(user) {
+                if (user.role === 'head') { let center = this.centers.find(c => c.id === user.id); return { fullName: center?.headName || this.username, centerName: center?.centerName || '-', provinceName: center?.province || '-' }; }
+                if (user.role === 'instructor') { let inst = this.instructors.find(i => i.id === user.id); let center = this.centers.find(c => c.id === inst?.centerId); return { fullName: inst ? (inst.firstName + ' ' + inst.lastName) : this.username, centerName: center?.centerName || '-', provinceName: center?.province || '-' }; }
+                if (user.role === 'expert') { let exp = this.experts.find(e => e.id === user.id); return { fullName: exp?.name || this.username, centerName: '-', provinceName: exp?.province || '-' }; }
+                return { fullName: this.username, centerName: '-', provinceName: '-' };
+            },
+            logout() { this.loggedIn = false; this.username = ''; this.password = ''; this.loginError = ''; },
+            applyFilters() { if (this.currentRole === 'expert' || this.currentRole === 'admin') this.renderChart(); },
+
+            addProvince() { if(this.newProvince) { this.provinces.push({ name: this.newProvince, cities: [] }); this.newProvince = ''; } },
+            addCity() { if(this.selectedProvinceForCity && this.newCity) { let p = this.provinces.find(p => p.name === this.selectedProvinceForCity); if(p) p.cities.push(this.newCity); this.newCity = ''; } },
+
+            openExpertModal(index = null) {
+                if (index !== null) { this.expertForm = JSON.parse(JSON.stringify(this.experts[index])); }
+                else { this.expertForm = { id: 'e'+Date.now(), province: '', name: '', phone: '', username: '', password: '' }; }
+                this.showExpertModal = true;
+            },
+            saveExpert() {
+                let idx = this.experts.findIndex(e => e.id === this.expertForm.id);
+                if (idx !== -1) { this.experts[idx] = JSON.parse(JSON.stringify(this.expertForm)); let ruIdx = this.registeredUsers.findIndex(u => u.id === this.expertForm.id); if(ruIdx !== -1) this.registeredUsers[ruIdx] = { username: this.expertForm.username, password: this.expertForm.password, role: 'expert', id: this.expertForm.id }; }
+                else { this.experts.push(JSON.parse(JSON.stringify(this.expertForm))); this.registeredUsers.push({ username: this.expertForm.username, password: this.expertForm.password, role: 'expert', id: this.expertForm.id }); }
+                this.showExpertModal = false;
+            },
+            deleteExpert(index) { if (confirm('حذف کارشناس؟')) { let eId = this.experts[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== eId); this.experts.splice(index, 1); } },
+
+            openCenterModal(index = null) {
+                if (index !== null) { this.centerForm = JSON.parse(JSON.stringify(this.centers[index])); }
+                else { this.centerForm = { id: 'c'+Date.now(), province: '', city: '', centerName: '', headName: '', headPhone: '', headUsername: '', headPassword: '' }; }
+                this.showCenterModal = true;
+            },
+            saveCenter() {
+                let idx = this.centers.findIndex(c => c.id === this.centerForm.id);
+                if (idx !== -1) { this.centers[idx] = JSON.parse(JSON.stringify(this.centerForm)); let ruIdx = this.registeredUsers.findIndex(u => u.id === this.centerForm.id); if(ruIdx !== -1) this.registeredUsers[ruIdx] = { username: this.centerForm.headUsername, password: this.centerForm.headPassword, role: 'head', id: this.centerForm.id }; }
+                else { this.centers.push(JSON.parse(JSON.stringify(this.centerForm))); this.registeredUsers.push({ username: this.centerForm.headUsername, password: this.centerForm.headPassword, role: 'head', id: this.centerForm.id }); }
+                this.showCenterModal = false; if(this.currentRole === 'expert') this.$nextTick(() => this.renderChart());
+            },
+            deleteCenter(index) { if (confirm('حذف مرکز؟')) { let cId = this.centers[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== cId); this.centers.splice(index, 1); if(this.currentRole === 'expert') this.$nextTick(() => this.renderChart()); } },
+
+            openInstructorModal(index = null) {
+                if (index !== null) { this.instructorForm = JSON.parse(JSON.stringify(this.instructors[index])); }
+                else { this.instructorForm = { id: 'i'+Date.now(), centerId: this.currentUserId, firstName: '', lastName: '', nationalId: '', phone: '', empType: 'رسمی', username: '', password: '' }; }
+                this.showInstructorModal = true;
+            },
+            saveInstructor() {
+                let idx = this.instructors.findIndex(i => i.id === this.instructorForm.id);
+                if (idx !== -1) { this.instructors[idx] = JSON.parse(JSON.stringify(this.instructorForm)); let ruIdx = this.registeredUsers.findIndex(u => u.id === this.instructorForm.id); if(ruIdx !== -1) this.registeredUsers[ruIdx] = { username: this.instructorForm.username, password: this.instructorForm.password, role: 'instructor', id: this.instructorForm.id }; }
+                else { this.instructors.push(JSON.parse(JSON.stringify(this.instructorForm))); this.registeredUsers.push({ username: this.instructorForm.username, password: this.instructorForm.password, role: 'instructor', id: this.instructorForm.id }); }
+                this.showInstructorModal = false;
+            },
+            deleteInstructor(index) { if (confirm('حذف مربی؟')) { let iId = this.instructors[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== iId); this.instructors.splice(index, 1); } },
+
+            validateJalaliDate(dateStr) { return /^14\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/.test(dateStr); },
+            getInstructorFormButtonText() { let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == '۱۴۰۵' && r.month == 'مرداد'); if (existing) { return existing.status === 'approved' ? 'مشاهده گزارش مرداد (تایید شده)' : 'ویرایش گزارش مرداد'; } return 'تکمیل فرم ماهانه مرداد'; },
+            openNewForm() {
+                let inst = this.instructors.find(i => i.id === this.currentUserId);
+                let center = this.centers.find(c => c.id === inst.centerId);
+                let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == '۱۴۰۵' && r.month == 'مرداد');
+                if (existing) { this.viewReport(this.reports.indexOf(existing)); } 
+                else {
+                    this.currentReport = { id: 'r'+Date.now(), instructorId: this.currentUserId, centerId: inst.centerId, instructorName: inst.firstName+' '+inst.lastName, centerName: center.centerName, province: center.province, city: center.city, employmentType: inst.empType, year: '۱۴۰۵', month: 'مرداد', status: 'pending', partA: [], partB: this.defaultActivities.map(t => ({title: t.title, rule: t.rule, hours: '', desc: ''})), instructorNotes: '', headNotes: '', visibleToInstructor: false, visibleToExpert: false };
+                    this.isFormReadOnly = false;
+                    this.currentPage = 'form';
+                }
+            },
+            addCourse() { this.currentReport.partA.push({ title: '', hours: '', start: '', end: '', days: '' }); },
+            saveReport() {
+                for(let c of this.currentReport.partA) {
+                    if(!this.validateJalaliDate(c.start) || !this.validateJalaliDate(c.end)) { alert("فرمت تاریخ شمسی اشتباه است. مثال صحیح: 1405/05/01"); return; }
+                    if(c.start >= c.end) { alert("تاریخ خاتمه باید بعد از تاریخ شروع باشد."); return; }
+                    if(c.start > '1405/05/01' || c.end < '1405/05/31') { alert("دوره فعال باید کل ماه مرداد را پوشش دهد."); return; }
+                }
+                let idx = this.reports.findIndex(r => r.id === this.currentReport.id);
+                if (idx !== -1) { this.reports[idx] = JSON.parse(JSON.stringify(this.currentReport)); } else { this.reports.push(JSON.parse(JSON.stringify(this.currentReport))); }
+                alert('گزارش با موفقیت ثبت شد.'); this.currentPage = 'history';
+            },
+            viewReport(index) { this.currentReport = JSON.parse(JSON.stringify(this.reports[index])); this.isFormReadOnly = this.currentReport.status === 'approved'; this.currentPage = 'form'; },
+            approveCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'approved'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'approved'; this.isFormReadOnly = true; alert('تایید شد.'); this.currentPage = 'inbox'; },
+            rejectCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'rejected'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'rejected'; alert('برگشت داده شد.'); this.currentPage = 'inbox'; },
+
+            getInstructorStatus(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); return r ? r.status : 'not_submitted'; },
+            getInstructorTotalHours(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); if(!r) return 0; return r.partB.reduce((sum, a) => sum + (parseInt(a.hours) || 0), 0); },
+            getCenterStats(centerId) { let centerInstructors = this.instructors.filter(ins => ins.centerId === centerId); let approved = 0; centerInstructors.forEach(ins => { if(this.getInstructorStatus(ins.id) === 'approved') approved++; }); return { total: centerInstructors.length, approved: approved }; },
+            getProvinceStats(provinceName) { let provinceCenters = this.centers.filter(c => c.province === provinceName); let approved = 0; provinceCenters.forEach(c => { approved += this.getCenterStats(c.id).approved; }); return { total: provinceCenters.length, approved: approved }; },
+            openDrillDown(id) { this.drillDownCenterId = id; },
+            openDrillDownProvince(name) { this.drillDownProvince = name; },
+
+            renderChart() {
+                if ((this.currentRole !== 'expert' && this.currentRole !== 'admin') || this.currentPage !== 'charts') return;
+                const ctx = document.getElementById('approvalChart'); if (!ctx) return;
+                let data = [];
+                if (this.currentRole === 'expert') { data = this.centers.map(c => { let stats = this.getCenterStats(c.id); return { name: c.centerName, percent: stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0 }; }); } 
+                else { data = this.provinces.map(p => { let stats = this.getProvinceStats(p.name); return { name: p.name, percent: stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0 }; }); }
+                data.sort((a, b) => b.percent - a.percent);
+                let colors = data.map(d => `hsl(${d.percent * 1.2}, 70%, 50%)`);
+                let borderColors = data.map(d => `hsl(${d.percent * 1.2}, 70%, 40%)`);
+                if (this.chartInstance) this.chartInstance.destroy();
+                const datalabelPlugin = { id: 'datalabels', afterDatasetsDraw(chart) { const ctx = chart.ctx; chart.data.datasets[0].data.forEach((value, index) => { const meta = chart.getDatasetMeta(0); const bar = meta.data[index]; ctx.fillStyle = '#333'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(value + '%', bar.x + 5, bar.y); }); } };
+                this.chartInstance = new Chart(ctx, { type: 'bar', data: { labels: data.map(d => d.name), datasets: [{ label: 'درصد تایید (%)', data: data.map(d => d.percent), backgroundColor: colors, borderColor: borderColors, borderWidth: 1, barThickness: 30 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }, plugins: [datalabelPlugin] });
+            },
+
+            exportToCSV() {
+                let csv = '\uFEFFاستان,مرکز,مربی,نوع استخدام,وضعیت گزارش,جمع ساعت\n'; 
+                if (this.currentRole === 'admin') {
+                    this.provinces.forEach(p => { let pCenters = this.centers.filter(c => c.province === p.name); pCenters.forEach(c => { let cInsts = this.instructors.filter(ins => ins.centerId === c.id); if(cInsts.length === 0) csv += `${p.name},${c.centerName},---,---,بدون مربی,0\n`; cInsts.forEach(ins => { let status = this.getInstructorStatus(ins.id); let hours = this.getInstructorTotalHours(ins.id); csv += `${p.name},${c.centerName},${ins.firstName} ${ins.lastName},${ins.empType},${status},${hours}\n`; }); }); });
+                } else {
+                    this.centers.forEach(c => { let cInsts = this.instructors.filter(ins => ins.centerId === c.id); cInsts.forEach(ins => { let status = this.getInstructorStatus(ins.id); let hours = this.getInstructorTotalHours(ins.id); csv += `${c.province},${c.centerName},${ins.firstName} ${ins.lastName},${ins.empType},${status},${hours}\n`; }); });
+                }
+                let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `report-${this.dashboardMonth}.csv`; link.click();
+            },
+
+            totalHours() { if(!this.currentReport) return 0; return this.currentReport.partB.reduce((sum, a) => sum + (parseInt(a.hours) || 0), 0); },
+            downloadPDF() {
+                let report = this.currentReport; if (!report) return;
+                let partAHtml = report.partA.length > 0 ? report.partA.map((c, i) => `<tr><td>${i+1}</td><td>${c.title}</td><td>${c.hours}</td><td>${c.start}</td><td>${c.end}</td><td>${c.days}</td></tr>`).join('') : `<tr><td colspan="6">بدون دوره</td></tr>`;
+                let partBHtml = report.partB.map((a, i) => `<tr><td>${i+1}</td><td>${a.title}<br><small style="color:#666">${a.rule}</small></td><td>${a.hours}</td><td>${a.desc}</td></tr>`).join('');
+                let totalHrs = this.totalHours();
+                const html = `<div style="font-family:sans-serif;padding:20px;direction:rtl;width:100%"><div style="text-align:center;border-bottom:2px solid #333;padding-bottom:10px;margin-bottom:20px"><h1>فرم گزارش فعالیت‌ها</h1></div><div style="font-size:12px;margin-bottom:20px;border:1px solid #ddd;padding:10px">سال: ${report.year} | ماه: ${report.month} | مرکز: ${report.centerName} | مربی: ${report.instructorName}</div><h3>بخش الف</h3><table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:20px"><thead><tr><th border:1px solid #ccc>عنوان</th><th>ساعت</th><th>شروع</th><th>خاتمه</th><th>روزها</th></tr></thead><tbody>${partAHtml}</tbody></table><h3>بخش ب</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th>عنوان</th><th>ساعت</th><th>توضیحات</th></tr></thead><tbody>${partBHtml}</tbody><tfoot><tr><td colspan="1">جمع کل:</td><td>${totalHrs}</td><td></td></tr></tfoot></table></div>`;
+                let temp = document.createElement('div'); temp.style.position = 'absolute'; temp.style.left = '-9999px'; temp.innerHTML = html; document.body.appendChild(temp);
+                html2pdf().set({margin:10,filename:'report.pdf',html2canvas:{scale:2}}).from(temp).save().then(()=>document.body.removeChild(temp));
+            }
+        }
+    }
+</script>
+</body>
+</html>
