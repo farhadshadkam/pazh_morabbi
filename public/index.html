@@ -124,7 +124,7 @@
                         <div class="w-40">
                             <label class="block text-xs mb-1 text-gray-500">سال:</label>
                             <select x-model="dashboardYear">
-                                <option value="۱۴۰۳">۱۴۰۳</option><option value="۱۴۰۴">۱۴۰۴</option><option value="۱۴۰۵" selected>۱۴۰۵</option><option value="۱۴۰۶">۱۴۰۶</option>
+                                <option value="۱۴۰۳">۱۴۰۳</option><option value="۱۴۰۴">۱۴۰۴</option><option value="۱۴۰۵">۱۴۰۵</option><option value="۱۴۰۶">۱۴۰۶</option>
                                 <option value="۱۴۰۷">۱۴۰۷</option><option value="۱۴۰۸">۱۴۰۸</option><option value="۱۴۰۹">۱۴۰۹</option><option value="۱۴۱۰">۱۴۱۰</option>
                             </select>
                         </div>
@@ -210,13 +210,14 @@
                         <div class="w-40">
                             <label class="block text-xs mb-1 text-gray-500">سال:</label>
                             <select x-model="dashboardYear">
-                                <option value="۱۴۰۳">۱۴۰۳</option><option value="۱۴۰۴">۱۴۰۴</option><option value="۱۴۰۵" selected>۱۴۰۵</option><option value="۱۴۰۶">۱۴۰۶</option>
+                                <option value="۱۴۰۳">۱۴۰۳</option><option value="۱۴۰۴">۱۴۰۴</option><option value="۱۴۰۵">۱۴۰۵</option><option value="۱۴۰۶">۱۴۰۶</option>
                             </select>
                         </div>
                         <div class="w-40">
                             <label class="block text-xs mb-1 text-gray-500">ماه:</label>
                             <select x-model="dashboardMonth">
-                                <option value="مرداد">مرداد</option><option value="شهریور">شهریور</option>
+                                <option value="فروردین">فروردین</option><option value="اردیبهشت">اردیبهشت</option><option value="خرداد">خرداد</option><option value="تیر">تیر</option>
+                                <option value="مرداد">مرداد</option><option value="شهریور">شهریور</option><option value="مهر">مهر</option><option value="آبان">آبان</option>
                             </select>
                         </div>
                         <button @click="applyFilters()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">اعمال فیلتر</button>
@@ -234,7 +235,7 @@
                             <h3 class="font-bold mb-2">افزودن استان</h3>
                             <div class="flex gap-2"><input type="text" x-model="newProvince" placeholder="نام استان"><button @click="addProvince()" class="bg-blue-600 text-white px-4 py-2 rounded-lg whitespace-nowrap">افزودن</button></div>
                             <ul class="mt-4 border rounded-lg divide-y">
-                                <template x-for="(p, i) in provinces" :key="i"><li class="p-3 flex justify-between items-center hover:bg-slate-50"><span x-text="p.name"></span><button @click="provinces.splice(i, 1)" class="text-red-500 text-xs">حذف</button></li></template>
+                                <template x-for="(p, i) in provinces" :key="i"><li class="p-3 flex justify-between items-center hover:bg-slate-50"><span x-text="p.name"></span><button @click="provinces.splice(i, 1); saveState()" class="text-red-500 text-xs">حذف</button></li></template>
                             </ul>
                         </div>
                         <div>
@@ -245,7 +246,7 @@
                                 <button @click="addCity()" class="bg-blue-600 text-white px-4 py-2 rounded-lg w-full">افزودن شهرستان</button>
                             </div>
                             <ul class="mt-4 border rounded-lg divide-y max-h-48 overflow-y-auto">
-                                <template x-if="selectedProvinceForCity"><template x-for="(p, i) in provinces" :key="i"><template x-if="p.name === selectedProvinceForCity"><template x-for="(c, j) in p.cities" :key="j"><li class="p-3 flex justify-between items-center hover:bg-slate-50"><span x-text="c"></span><button @click="provinces[i].cities.splice(j, 1)" class="text-red-500 text-xs">حذف</button></li></template></template></template></template>
+                                <template x-if="selectedProvinceForCity"><template x-for="(p, i) in provinces" :key="i"><template x-if="p.name === selectedProvinceForCity"><template x-for="(c, j) in p.cities" :key="j"><li class="p-3 flex justify-between items-center hover:bg-slate-50"><span x-text="c"></span><button @click="provinces[i].cities.splice(j, 1); saveState()" class="text-red-500 text-xs">حذف</button></li></template></template></template></template>
                             </ul>
                         </div>
                     </div>
@@ -551,6 +552,7 @@
             ],
 
             init() {
+                // 1. Calculate Today's Date
                 const today = new Date();
                 const gy = today.getFullYear();
                 const gm = today.getMonth() + 1;
@@ -571,6 +573,32 @@
                 const prevMonth = jm === 1 ? 12 : jm - 1;
                 const monthsMap = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
                 this.dashboardMonth = monthsMap[prevMonth - 1];
+
+                // 2. Load Persisted State from LocalStorage
+                const savedData = localStorage.getItem('tvtoState');
+                if (savedData) {
+                    try {
+                        const parsed = JSON.parse(savedData);
+                        this.registeredUsers = parsed.registeredUsers || [{ username: 'admin', password: '123', role: 'admin', id: 'u1' }];
+                        this.provinces = parsed.provinces || [{ name: 'تهران', cities: ['تهران', 'ری'] }];
+                        this.experts = parsed.experts || [];
+                        this.centers = parsed.centers || [];
+                        this.instructors = parsed.instructors || [];
+                        this.reports = parsed.reports || [];
+                    } catch(e) { console.error('Error loading state', e); }
+                }
+            },
+
+            // Save State to LocalStorage
+            saveState() {
+                localStorage.setItem('tvtoState', JSON.stringify({
+                    registeredUsers: this.registeredUsers,
+                    provinces: this.provinces,
+                    experts: this.experts,
+                    centers: this.centers,
+                    instructors: this.instructors,
+                    reports: this.reports
+                }));
             },
 
             login() {
@@ -590,7 +618,12 @@
                 return { fullName: this.username, centerName: '-', provinceName: '-' };
             },
             logout() { this.loggedIn = false; this.username = ''; this.password = ''; this.loginError = ''; },
-            applyFilters() { if (this.currentRole === 'expert' || this.currentRole === 'admin') this.renderChart(); },
+            
+            applyFilters() { 
+                if (this.currentRole === 'expert' || this.currentRole === 'admin') {
+                    this.$nextTick(() => this.renderChart()); 
+                }
+            },
 
             // Profile Logic
             openProfileModal() {
@@ -615,12 +648,13 @@
                 }
                 
                 this.currentUserInfo = this.getUserInfo(user);
+                this.saveState();
                 this.showProfileModal = false;
                 alert('پروفایل با موفقیت ذخیره شد.');
             },
 
-            addProvince() { if(this.newProvince) { this.provinces.push({ name: this.newProvince, cities: [] }); this.newProvince = ''; } },
-            addCity() { if(this.selectedProvinceForCity && this.newCity) { let p = this.provinces.find(p => p.name === this.selectedProvinceForCity); if(p) p.cities.push(this.newCity); this.newCity = ''; } },
+            addProvince() { if(this.newProvince) { this.provinces.push({ name: this.newProvince, cities: [] }); this.newProvince = ''; this.saveState(); } },
+            addCity() { if(this.selectedProvinceForCity && this.newCity) { let p = this.provinces.find(p => p.name === this.selectedProvinceForCity); if(p) p.cities.push(this.newCity); this.newCity = ''; this.saveState(); } },
 
             openExpertModal(index = null) {
                 if (index !== null) { this.expertForm = JSON.parse(JSON.stringify(this.experts[index])); }
@@ -631,9 +665,9 @@
                 let idx = this.experts.findIndex(e => e.id === this.expertForm.id);
                 if (idx !== -1) { this.experts[idx] = JSON.parse(JSON.stringify(this.expertForm)); let ruIdx = this.registeredUsers.findIndex(u => u.id === this.expertForm.id); if(ruIdx !== -1) this.registeredUsers[ruIdx] = { username: this.expertForm.username, password: this.expertForm.password, role: 'expert', id: this.expertForm.id }; }
                 else { this.experts.push(JSON.parse(JSON.stringify(this.expertForm))); this.registeredUsers.push({ username: this.expertForm.username, password: this.expertForm.password, role: 'expert', id: this.expertForm.id }); }
-                this.showExpertModal = false;
+                this.showExpertModal = false; this.saveState();
             },
-            deleteExpert(index) { if (confirm('حذف کارشناس؟')) { let eId = this.experts[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== eId); this.experts.splice(index, 1); } },
+            deleteExpert(index) { if (confirm('حذف کارشناس؟')) { let eId = this.experts[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== eId); this.experts.splice(index, 1); this.saveState(); } },
 
             openCenterModal(index = null) {
                 if (index !== null) { this.centerForm = JSON.parse(JSON.stringify(this.centers[index])); }
@@ -644,9 +678,9 @@
                 let idx = this.centers.findIndex(c => c.id === this.centerForm.id);
                 if (idx !== -1) { this.centers[idx] = JSON.parse(JSON.stringify(this.centerForm)); let ruIdx = this.registeredUsers.findIndex(u => u.id === this.centerForm.id); if(ruIdx !== -1) this.registeredUsers[ruIdx] = { username: this.centerForm.headUsername, password: this.centerForm.headPassword, role: 'head', id: this.centerForm.id }; }
                 else { this.centers.push(JSON.parse(JSON.stringify(this.centerForm))); this.registeredUsers.push({ username: this.centerForm.headUsername, password: this.centerForm.headPassword, role: 'head', id: this.centerForm.id }); }
-                this.showCenterModal = false; if(this.currentRole === 'expert') this.$nextTick(() => this.renderChart());
+                this.showCenterModal = false; this.saveState(); if(this.currentRole === 'expert') this.$nextTick(() => this.renderChart());
             },
-            deleteCenter(index) { if (confirm('حذف مرکز؟')) { let cId = this.centers[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== cId); this.centers.splice(index, 1); if(this.currentRole === 'expert') this.$nextTick(() => this.renderChart()); } },
+            deleteCenter(index) { if (confirm('حذف مرکز؟')) { let cId = this.centers[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== cId); this.centers.splice(index, 1); this.saveState(); if(this.currentRole === 'expert') this.$nextTick(() => this.renderChart()); } },
 
             openInstructorModal(index = null) {
                 if (index !== null) { this.instructorForm = JSON.parse(JSON.stringify(this.instructors[index])); }
@@ -657,12 +691,22 @@
                 let idx = this.instructors.findIndex(i => i.id === this.instructorForm.id);
                 if (idx !== -1) { this.instructors[idx] = JSON.parse(JSON.stringify(this.instructorForm)); let ruIdx = this.registeredUsers.findIndex(u => u.id === this.instructorForm.id); if(ruIdx !== -1) this.registeredUsers[ruIdx] = { username: this.instructorForm.username, password: this.instructorForm.password, role: 'instructor', id: this.instructorForm.id }; }
                 else { this.instructors.push(JSON.parse(JSON.stringify(this.instructorForm))); this.registeredUsers.push({ username: this.instructorForm.username, password: this.instructorForm.password, role: 'instructor', id: this.instructorForm.id }); }
-                this.showInstructorModal = false;
+                this.showInstructorModal = false; this.saveState();
             },
-            deleteInstructor(index) { if (confirm('حذف مربی؟')) { let iId = this.instructors[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== iId); this.instructors.splice(index, 1); } },
+            deleteInstructor(index) { if (confirm('حذف مربی؟')) { let iId = this.instructors[index].id; this.registeredUsers = this.registeredUsers.filter(u => u.id !== iId); this.instructors.splice(index, 1); this.saveState(); } },
 
-            validateJalaliDate(dateStr) { return /^1[4-9]\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/.test(dateStr); },
+            // Date normalization (Convert Persian digits to English)
+            toEnDigits(str) {
+                if (!str) return '';
+                return str.toString().replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+            },
+            validateJalaliDate(dateStr) {
+                const enDateStr = this.toEnDigits(dateStr);
+                return /^1[4-9]\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])$/.test(enDateStr);
+            },
+            
             getInstructorFormButtonText() { let existing = this.reports.find(r => r.instructorId === this.currentUserId && r.year == this.dashboardYear && r.month == this.dashboardMonth); if (existing) { return existing.status === 'approved' ? 'مشاهده گزارش '+ this.dashboardMonth +' (تایید شده)' : 'ویرایش گزارش ' + this.dashboardMonth; } return 'تکمیل فرم ماهانه ' + this.dashboardMonth; },
+            
             openNewForm() {
                 let inst = this.instructors.find(i => i.id === this.currentUserId);
                 let center = this.centers.find(c => c.id === inst.centerId);
@@ -679,7 +723,7 @@
                 const monthsMap = {'فروردین':'01','اردیبهشت':'02','خرداد':'03','تیر':'04','مرداد':'05','شهریور':'06','مهر':'07','آبان':'08','آذر':'09','دی':'10','بهمن':'11','اسفند':'12'};
                 const daysInMonth = {'01':'31','02':'31','03':'31','04':'31','05':'31','06':'31','07':'30','08':'30','09':'30','10':'30','11':'30','12':'29'};
                 
-                let year = this.currentReport.year;
+                let year = this.toEnDigits(this.currentReport.year);
                 let mNum = monthsMap[this.currentReport.month];
                 let lastDay = daysInMonth[mNum];
                 
@@ -687,17 +731,21 @@
                 let mEnd = `${year}/${mNum}/${lastDay}`;
 
                 for(let c of this.currentReport.partA) {
+                    c.start = this.toEnDigits(c.start);
+                    c.end = this.toEnDigits(c.end);
+                    
                     if(!this.validateJalaliDate(c.start) || !this.validateJalaliDate(c.end)) { alert("فرمت تاریخ شمسی اشتباه است. حتما با صفرهای پیشفرض وارد کنید. مثال صحیح: 1405/05/01"); return; }
                     if(c.start >= c.end) { alert("تاریخ خاتمه باید بعد از تاریخ شروع باشد."); return; }
                     if(c.start > mStart || c.end < mEnd) { alert(`دوره فعال باید کل ماه ${this.currentReport.month} را پوشش دهد. (شروع باید ${mStart} یا قبلتر باشد و خاتمه ${mEnd} یا بعدتر)`); return; }
                 }
                 let idx = this.reports.findIndex(r => r.id === this.currentReport.id);
                 if (idx !== -1) { this.reports[idx] = JSON.parse(JSON.stringify(this.currentReport)); } else { this.reports.push(JSON.parse(JSON.stringify(this.currentReport))); }
+                this.saveState();
                 alert('گزارش با موفقیت ثبت شد.'); this.currentPage = 'history';
             },
             viewReport(index) { this.currentReport = JSON.parse(JSON.stringify(this.reports[index])); this.isFormReadOnly = this.currentReport.status === 'approved'; this.currentPage = 'form'; },
-            approveCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'approved'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'approved'; this.isFormReadOnly = true; alert('تایید شد.'); this.currentPage = 'inbox'; },
-            rejectCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'rejected'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'rejected'; alert('برگشت داده شد.'); this.currentPage = 'inbox'; },
+            approveCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'approved'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'approved'; this.isFormReadOnly = true; alert('تایید شد.'); this.currentPage = 'inbox'; this.saveState(); },
+            rejectCurrentReport() { let r = this.reports.find(r => r.id === this.currentReport.id); r.status = 'rejected'; r.visibleToInstructor = this.currentReport.visibleToInstructor; r.visibleToExpert = this.currentReport.visibleToExpert; r.headNotes = this.currentReport.headNotes; this.currentReport.status = 'rejected'; alert('برگشت داده شد.'); this.currentPage = 'inbox'; this.saveState(); },
 
             getInstructorStatus(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); return r ? r.status : 'not_submitted'; },
             getInstructorTotalHours(instId) { let r = this.reports.find(r => r.instructorId === instId && r.year === this.dashboardYear && r.month === this.dashboardMonth); if(!r) return 0; return r.partB.reduce((sum, a) => sum + ((parseFloat(a.qty) || 0) * a.multiplier), 0); },
