@@ -8,7 +8,6 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jalaali-js/dist/jalaali.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f8fafc; }
@@ -30,7 +29,7 @@
         <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 to-blue-900 p-4">
             <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
                 <div class="text-center mb-8">
-                    <img src="https://z-cdn-media.chatglm.cn/files/4712c193-f4ee-4cc2-a0d0-3ca03f3ba2c8.jpg" alt="TVTO Logo" class="w-20 h-20 mx-auto mb-4 rounded-full object-contain bg-white p-1 border">
+                    <img src="https://z-cdn-media.chatglm.cn/files/4712c193-f4ee-4cc2-a0d0-3ca03f3ba2c8.jpg" onerror="this.style.display='none'" alt="TVTO Logo" class="w-20 h-20 mx-auto mb-4 rounded-full object-contain bg-white p-1 border">
                     <h1 class="text-2xl font-bold text-slate-800">سامانه رصد فعالیت‌ها</h1>
                     <p class="text-sm text-gray-500 mt-2">سازمان آموزش فنی و حرفه‌ای کشور</p>
                 </div>
@@ -57,7 +56,7 @@
         <div class="min-h-screen flex">
             <aside class="w-64 bg-slate-800 text-white flex flex-col fixed h-full">
                 <div class="p-4 text-center border-b border-slate-700 flex flex-col items-center">
-                    <img src="https://z-cdn-media.chatglm.cn/files/4712c193-f4ee-4cc2-a0d0-3ca03f3ba2c8.jpg" alt="Logo" class="w-16 h-16 mb-2 rounded-full object-contain bg-white p-1">
+                    <img src="https://z-cdn-media.chatglm.cn/files/4712c193-f4ee-4cc2-a0d0-3ca03f3ba2c8.jpg" onerror="this.style.display='none'" alt="Logo" class="w-16 h-16 mb-2 rounded-full object-contain bg-white p-1">
                     <h1 class="text-lg font-bold">پنل کاربری</h1>
                     <p class="text-xs text-blue-400 mt-1 font-bold">سازمان آموزش فنی و حرفه ای</p>
                 </div>
@@ -494,7 +493,7 @@
             currentUserInfo: { fullName: '', centerName: '-', provinceName: '-' },
             roles: [{id:'admin',name:'ادمین'},{id:'expert',name:'کارشناس'},{id:'head',name:'رئیس مرکز'},{id:'instructor',name:'مربی'}],
             
-            // Dynamic System Date using Jalaali JS
+            // Dynamic System Date Native Implementation
             todayJalali: '',
             
             registeredUsers: [{ username: 'admin', password: '123', role: 'admin', id: 'u1' }],
@@ -505,29 +504,42 @@
             newProvince: '', newCity: '', selectedProvinceForCity: '', isFormReadOnly: false,
             
             defaultActivities: [
-                { title: 'بازرسی از آموزشگاههای فنی و حرفه ای آزاد', rule: 'هر بازدید استاندارد: ۲ ساعت', unit: 'بازدید', multiplier: 2 },
-                { title: 'همکاری در اجرای کلان پروژه های سازمان', rule: 'بر اساس ساعت واقعی حضور تایید شده', unit: 'ساعت', multiplier: 1 },
-                { title: 'طراحی پروژه مسابقات ملی مهارت سطح کشوری', rule: 'هر پروژه: حداکثر ۴۰ ساعت', unit: 'پروژه', multiplier: 40 },
-                { title: 'طراحی پروژه مساباقات ملی مهارت سطح استانی', rule: 'هر پروژه: حداکثر ۳۰ ساعت', unit: 'پروژه', multiplier: 30 },
-                { title: 'آموزش به رقابت کنندگان مسابقات ملی مهارت سطح کشوری', rule: 'ساعت واقعی آموزش (حداکثر ۱۰ ساعت در روز)', unit: 'ساعت', multiplier: 1 },
-                { title: 'بازنگری استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۲۰ ساعت', unit: 'استاندارد', multiplier: 20 },
-                { title: 'تدوین استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۴۰ ساعت', unit: 'استاندارد', multiplier: 40 },
-                { title: 'اجرای آزمون عملی', rule: 'هر آزمون: ۱ ساعت', unit: 'آزمون', multiplier: 1 },
-                { title: 'طراحی سؤال', rule: 'هر سؤال: ۱ ساعت', unit: 'سؤال', multiplier: 1 },
-                { title: 'ممیزی سؤال', rule: 'هر سؤال: ۰.۵ ساعت', unit: 'سؤال', multiplier: 0.5 },
-                { title: 'طراحی پروژه عملی', rule: 'هر پروژه: ۱۰ ساعت', unit: 'پروژه', multiplier: 10 },
-                { title: 'ممیزی پروژه عملی', rule: 'هر پروژه: ۵ ساعت', unit: 'پروژه', multiplier: 5 }
+                { title: 'بازرسی از آموزشگاههای فنی و حرفه ای آزاد', rule: 'هر بازدید استاندارد: ۲ ساعت', multiplier: 2 },
+                { title: 'همکاری در اجرای کلان پروژه های سازمان', rule: 'بر اساس ساعت واقعی حضور تایید شده', multiplier: 1 },
+                { title: 'طراحی پروژه مسابقات ملی مهارت سطح کشوری', rule: 'هر پروژه: حداکثر ۴۰ ساعت', multiplier: 40 },
+                { title: 'طراحی پروژه مساباقات ملی مهارت سطح استانی', rule: 'هر پروژه: حداکثر ۳۰ ساعت', multiplier: 30 },
+                { title: 'آموزش به رقابت کنندگان مسابقات ملی مهارت سطح کشوری', rule: 'ساعت واقعی آموزش (حداکثر ۱۰ ساعت در روز)', multiplier: 1 },
+                { title: 'بازنگری استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۲۰ ساعت', multiplier: 20 },
+                { title: 'تدوین استاندارد آموزش، شایستگی و ارزشیابی', rule: 'هر استاندارد: حداکثر ۴۰ ساعت', multiplier: 40 },
+                { title: 'اجرای آزمون عملی', rule: 'هر آزمون: ۱ ساعت', multiplier: 1 },
+                { title: 'طراحی سؤال', rule: 'هر سؤال: ۱ ساعت', multiplier: 1 },
+                { title: 'ممیزی سؤال', rule: 'هر سؤال: ۰.۵ ساعت', multiplier: 0.5 },
+                { title: 'طراحی پروژه عملی', rule: 'هر پروژه: ۱۰ ساعت', multiplier: 10 },
+                { title: 'ممیزی پروژه عملی', rule: 'هر پروژه: ۵ ساعت', multiplier: 5 }
             ],
 
             init() {
-                // Calculate today's Jalali date on load
+                // Native Jalali Date Calculation
                 const today = new Date();
-                const j = jalaali.toJalaali(today);
-                this.todayJalali = `${j.jy}/${j.jm.toString().padStart(2, '0')}/${j.jd.toString().padStart(2, '0')}`;
+                const gy = today.getFullYear();
+                const gm = today.getMonth() + 1;
+                const gd = today.getDate();
+                const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+                let jy = (gy <= 1600) ? 0 : 979;
+                let gy_tmp = gy - ((gy <= 1600) ? 621 : 1600);
+                let gy2 = (gm > 2) ? (gy_tmp + 1) : gy_tmp;
+                let days = (365 * gy_tmp) + (parseInt((gy2 + 3) / 4)) - (parseInt((gy2 + 99) / 100)) + (parseInt((gy2 + 399) / 400)) - 80 + gd + g_d_m[gm - 1];
+                jy += 33 * parseInt(days / 12053); days %= 12053;
+                jy += 4 * parseInt(days / 1461); days %= 1461;
+                jy += parseInt((days - 1) / 365); days = (days - 1) % 365;
+                const jm = (days < 186) ? 1 + parseInt(days / 31) : 7 + parseInt((days - 186) / 30);
+                const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+                
+                this.todayJalali = `${jy}/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}`;
                 
                 // Set dashboard defaults to current year and previous month dynamically
-                this.dashboardYear = j.jy.toString();
-                const prevMonth = j.jm === 1 ? 12 : j.jm - 1;
+                this.dashboardYear = jy.toString();
+                const prevMonth = jm === 1 ? 12 : jm - 1;
                 const monthsMap = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
                 this.dashboardMonth = monthsMap[prevMonth - 1];
             },
