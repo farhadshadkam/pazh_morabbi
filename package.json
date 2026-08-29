@@ -1,0 +1,13 @@
+{
+  "name": "tvto-system",
+  "version": "1.0.0",
+  "description": "سامانه رصد فعالیت های مربیان فنی و حرفه ای",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "better-sqlite3": "^9.1.1"
+  }
+}
